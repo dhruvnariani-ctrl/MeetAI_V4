@@ -1,3 +1,4 @@
+
 import { useEffect, useId, useRef, useState } from 'react'
 import Avatar from '@mui/material/Avatar'
 import Box from '@mui/material/Box'
@@ -18,11 +19,23 @@ import SmartToyOutlinedIcon from '@mui/icons-material/SmartToyOutlined'
 import { D, serif } from '../dashboard/dashTheme'
 import { SUGGESTIONS } from './companionEngine'
 
-const focusRing = { outline: `2px solid ${D.navy}`, outlineOffset: 2 }
+const focusRing = {
+  outline: `2px solid ${D.navy}`,
+  outlineOffset: 2,
+}
 
 function BotAvatar({ size = 28, imageSrc }) {
   return imageSrc ? (
-    <Avatar src={imageSrc} alt="" sx={{ width: size, height: size, bgcolor: '#fff', border: `1px solid ${D.line}` }} />
+    <Avatar
+      src={imageSrc}
+      alt=""
+      sx={{
+        width: size,
+        height: size,
+        bgcolor: '#fff',
+        border: `1px solid ${D.line}`,
+      }}
+    />
   ) : (
     <Box
       aria-hidden="true"
@@ -36,7 +49,9 @@ function BotAvatar({ size = 28, imageSrc }) {
         bgcolor: '#fff',
         color: D.navy,
         border: `1px solid ${D.line}`,
-        '& svg': { fontSize: size * 0.62 },
+        '& svg': {
+          fontSize: size * 0.62,
+        },
       }}
     >
       <SmartToyOutlinedIcon />
@@ -48,7 +63,14 @@ function Bubble({ message, imageSrc, onAction }) {
   const bot = message.role === 'bot'
 
   return (
-    <Box sx={{ display: 'flex', alignItems: 'flex-end', gap: 1, justifyContent: bot ? 'flex-start' : 'flex-end' }}>
+    <Box
+      sx={{
+        display: 'flex',
+        alignItems: 'flex-end',
+        gap: 1,
+        justifyContent: bot ? 'flex-start' : 'flex-end',
+      }}
+    >
       {bot && <BotAvatar imageSrc={imageSrc} />}
 
       <Box sx={{ maxWidth: '82%', minWidth: 0 }}>
@@ -56,7 +78,9 @@ function Bubble({ message, imageSrc, onAction }) {
           sx={{
             px: 1.5,
             py: 1,
-            borderRadius: bot ? '8px 8px 8px 2px' : '8px 8px 2px 8px',
+            borderRadius: bot
+              ? '8px 8px 8px 2px'
+              : '8px 8px 2px 8px',
             bgcolor: bot ? '#fff' : D.navy,
             color: bot ? D.navy : '#fff',
             border: bot ? `1px solid ${D.line}` : 0,
@@ -66,18 +90,31 @@ function Bubble({ message, imageSrc, onAction }) {
             overflowWrap: 'anywhere',
           }}
         >
-          <span style={visuallyHidden}>{bot ? 'Companion: ' : 'You: '}</span>
+          <span style={visuallyHidden}>
+            {bot ? 'Companion: ' : 'You: '}
+          </span>
           {message.text}
         </Box>
 
         {bot && message.actions?.length > 0 && (
-          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75, mt: 0.75 }}>
+          <Box
+            sx={{
+              display: 'flex',
+              flexWrap: 'wrap',
+              gap: 0.75,
+              mt: 0.75,
+            }}
+          >
             {message.actions.map((action) => (
               <Button
                 key={action.label}
                 size="small"
                 variant="outlined"
-                endIcon={<ArrowForwardIcon sx={{ fontSize: '14px !important' }} />}
+                endIcon={
+                  <ArrowForwardIcon
+                    sx={{ fontSize: '14px !important' }}
+                  />
+                }
                 onClick={() => onAction(action)}
                 sx={{
                   textTransform: 'none',
@@ -88,7 +125,10 @@ function Bubble({ message, imageSrc, onAction }) {
                   color: D.navy,
                   borderColor: D.line,
                   bgcolor: '#fff',
-                  '&:hover': { borderColor: D.navy, bgcolor: '#F5F8FD' },
+                  '&:hover': {
+                    borderColor: D.navy,
+                    bgcolor: '#F5F8FD',
+                  },
                   '&:focus-visible': focusRing,
                 }}
               >
@@ -104,8 +144,15 @@ function Bubble({ message, imageSrc, onAction }) {
 
 function Typing({ imageSrc }) {
   return (
-    <Box sx={{ display: 'flex', alignItems: 'flex-end', gap: 1 }}>
+    <Box
+      sx={{
+        display: 'flex',
+        alignItems: 'flex-end',
+        gap: 1,
+      }}
+    >
       <BotAvatar imageSrc={imageSrc} />
+
       <Box
         role="status"
         sx={{
@@ -116,10 +163,16 @@ function Typing({ imageSrc }) {
           borderRadius: '8px 8px 8px 2px',
           bgcolor: '#fff',
           border: `1px solid ${D.line}`,
-          '@keyframes companionBlink': { '0%, 80%, 100%': { opacity: 0.25 }, '40%': { opacity: 1 } },
+          '@keyframes companionBlink': {
+            '0%, 80%, 100%': { opacity: 0.25 },
+            '40%': { opacity: 1 },
+          },
         }}
       >
-        <span style={visuallyHidden}>Companion is typing</span>
+        <span style={visuallyHidden}>
+          Companion is typing
+        </span>
+
         {[0, 1, 2].map((i) => (
           <Box
             key={i}
@@ -131,7 +184,9 @@ function Typing({ imageSrc }) {
               bgcolor: D.muted,
               animation: 'companionBlink 1s infinite',
               animationDelay: `${i * 0.15}s`,
-              '@media (prefers-reduced-motion: reduce)': { animation: 'none' },
+              '@media (prefers-reduced-motion: reduce)': {
+                animation: 'none',
+              },
             }}
           />
         ))}
@@ -140,22 +195,36 @@ function Typing({ imageSrc }) {
   )
 }
 
-export default function CompanionDialog({ open, onClose, messages, busy, onSend, onAction, onReset, imageSrc, isAtBottom = false }) {
+export default function CompanionDialog({
+  open,
+  onClose,
+  messages,
+  busy,
+  onSend,
+  onAction,
+  onReset,
+  imageSrc,
+}) {
   const theme = useTheme()
   const fullScreen = useMediaQuery(theme.breakpoints.down('sm'))
   const titleId = useId()
   const listRef = useRef(null)
   const [text, setText] = useState('')
 
-  /* Keep the newest message in view. */
+  // Keep the newest message in view.
   useEffect(() => {
     const el = listRef.current
-    if (el) el.scrollTop = el.scrollHeight
+
+    if (el) {
+      el.scrollTop = el.scrollHeight
+    }
   }, [messages, busy, open])
 
   const send = (value) => {
     const v = value.trim()
+
     if (!v || busy) return
+
     setText('')
     onSend(v)
   }
@@ -167,16 +236,17 @@ export default function CompanionDialog({ open, onClose, messages, busy, onSend,
       fullScreen={fullScreen}
       aria-labelledby={titleId}
       sx={{
-        '& .MuiBackdrop-root': { bgcolor: 'rgba(20, 39, 94, .18)' },
+        '& .MuiBackdrop-root': {
+          bgcolor: 'rgba(20, 39, 94, .18)',
+        },
         '& .MuiDialog-container': {
-          alignItems: isAtBottom ? 'flex-start' : 'flex-end',
+          alignItems: 'flex-end',
           justifyContent: 'flex-end',
         },
         '& .MuiDialog-paper': {
           m: 0,
           mr: fullScreen ? 0 : { sm: '27px' },
-          mt: isAtBottom ? { xs: 0, sm: '104px' } : 0,
-          mb: isAtBottom ? 0 : { sm: '104px' },
+          mb: fullScreen ? 0 : { sm: '104px' },
           width: fullScreen ? '100%' : 400,
           maxWidth: '100%',
           height: { xs: '100%', sm: 580 },
@@ -189,25 +259,88 @@ export default function CompanionDialog({ open, onClose, messages, busy, onSend,
       }}
     >
       {/* Header */}
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, px: 2, py: 1.5, minHeight: 72, boxSizing: 'border-box', bgcolor: D.band }}>
+      <Box
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 1.25,
+          px: 2,
+          py: 1.5,
+          minHeight: 72,
+          boxSizing: 'border-box',
+          bgcolor: D.band,
+        }}
+      >
         <BotAvatar size={38} imageSrc={imageSrc} />
 
         <Box sx={{ flex: 1, minWidth: 0 }}>
-          <Typography id={titleId} component="h2" sx={{ fontFamily: serif, fontWeight: 400, fontSize: '1.5rem', lineHeight: 1.15, color: D.navy }}>
+          <Typography
+            id={titleId}
+            component="h2"
+            sx={{
+              fontFamily: serif,
+              fontWeight: 400,
+              fontSize: '1.5rem',
+              lineHeight: 1.15,
+              color: D.navy,
+            }}
+          >
             MeetAI Companion
           </Typography>
 
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mt: 0.25 }}>
-            <Box aria-hidden="true" sx={{ width: 7, height: 7, flexShrink: 0, borderRadius: '50%', bgcolor: D.green }} />
-            <Typography sx={{ fontSize: '.75rem', lineHeight: 1.4, color: D.text }}>Online · answers from your meetings</Typography>
+          <Box
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 0.75,
+              mt: 0.25,
+            }}
+          >
+            <Box
+              aria-hidden="true"
+              sx={{
+                width: 7,
+                height: 7,
+                flexShrink: 0,
+                borderRadius: '50%',
+                bgcolor: D.green,
+              }}
+            />
+
+            <Typography
+              sx={{
+                fontSize: '.75rem',
+                lineHeight: 1.4,
+                color: D.text,
+              }}
+            >
+              Online · answers from your meetings
+            </Typography>
           </Box>
         </Box>
 
         <Box sx={{ display: 'flex', flexShrink: 0 }}>
-          <IconButton size="small" aria-label="Start a new chat" onClick={onReset} sx={{ color: D.navy, '&:focus-visible': focusRing }}>
+          <IconButton
+            size="small"
+            aria-label="Start a new chat"
+            onClick={onReset}
+            sx={{
+              color: D.navy,
+              '&:focus-visible': focusRing,
+            }}
+          >
             <RestartAltIcon fontSize="small" />
           </IconButton>
-          <IconButton size="small" aria-label="Close" onClick={onClose} sx={{ color: D.navy, '&:focus-visible': focusRing }}>
+
+          <IconButton
+            size="small"
+            aria-label="Close"
+            onClick={onClose}
+            sx={{
+              color: D.navy,
+              '&:focus-visible': focusRing,
+            }}
+          >
             <CloseIcon fontSize="small" />
           </IconButton>
         </Box>
@@ -219,11 +352,26 @@ export default function CompanionDialog({ open, onClose, messages, busy, onSend,
         role="log"
         aria-live="polite"
         aria-label="Conversation"
-        sx={{ flex: 1, minHeight: 0, overflowY: 'auto', p: 2, display: 'grid', alignContent: 'start', gap: 1.5, bgcolor: D.page }}
+        sx={{
+          flex: 1,
+          minHeight: 0,
+          overflowY: 'auto',
+          p: 2,
+          display: 'grid',
+          alignContent: 'start',
+          gap: 1.5,
+          bgcolor: D.page,
+        }}
       >
         {messages.map((message) => (
-          <Bubble key={message.id} message={message} imageSrc={imageSrc} onAction={onAction} />
+          <Bubble
+            key={message.id}
+            message={message}
+            imageSrc={imageSrc}
+            onAction={onAction}
+          />
         ))}
+
         {busy && <Typing imageSrc={imageSrc} />}
       </Box>
 
@@ -246,20 +394,30 @@ export default function CompanionDialog({ open, onClose, messages, busy, onSend,
             onClick={() => send(label)}
             sx={{
               minWidth: 0,
-              minHeight: 30,
-              px: 0.75,
-              borderRadius: '15px',
+              minHeight: 34,
+              height: 'auto',
+              px: 1,
+              py: 0.75,
+              borderRadius: '12px',
               border: `1px solid ${D.line}`,
               bgcolor: '#fff',
               color: D.navy,
+              fontFamily: 'inherit',
               fontSize: '.75rem',
               fontWeight: 500,
+              lineHeight: 1.35,
               textTransform: 'none',
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              display: 'block',
-              '&:hover': { bgcolor: '#E4EBF8', borderColor: D.navy },
+              whiteSpace: 'normal',
+              overflowWrap: 'anywhere',
+              wordBreak: 'normal',
+              textAlign: 'center',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              '&:hover': {
+                bgcolor: '#E4EBF8',
+                borderColor: D.navy,
+              },
               '&:focus-visible': focusRing,
             }}
           >
@@ -271,8 +429,18 @@ export default function CompanionDialog({ open, onClose, messages, busy, onSend,
       {/* Input */}
       <Box
         component="form"
-        onSubmit={(e) => { e.preventDefault(); send(text) }}
-        sx={{ display: 'flex', gap: 1, px: 1.5, pb: 1.5, pt: 0.5, bgcolor: '#fff' }}
+        onSubmit={(e) => {
+          e.preventDefault()
+          send(text)
+        }}
+        sx={{
+          display: 'flex',
+          gap: 1,
+          px: 1.5,
+          pb: 1.5,
+          pt: 0.5,
+          bgcolor: '#fff',
+        }}
       >
         <OutlinedInput
           autoFocus
@@ -281,17 +449,34 @@ export default function CompanionDialog({ open, onClose, messages, busy, onSend,
           value={text}
           onChange={(e) => setText(e.target.value)}
           placeholder="Ask about meetings, tasks, recordings…"
-          slotProps={{ input: { 'aria-label': 'Message the Companion', maxLength: 300 } }}
+          slotProps={{
+            input: {
+              'aria-label': 'Message the Companion',
+              maxLength: 300,
+            },
+          }}
           sx={{
             borderRadius: '6px',
             fontSize: '.8125rem',
             bgcolor: '#fff',
             color: D.navy,
-            '& .MuiOutlinedInput-notchedOutline': { borderColor: D.line },
-            '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: D.navy },
-            '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: D.navy, borderWidth: 2 },
-            '& input': { py: '9px' },
-            '& input::placeholder': { opacity: 1, color: D.muted },
+            '& .MuiOutlinedInput-notchedOutline': {
+              borderColor: D.line,
+            },
+            '&:hover .MuiOutlinedInput-notchedOutline': {
+              borderColor: D.navy,
+            },
+            '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+              borderColor: D.navy,
+              borderWidth: 2,
+            },
+            '& input': {
+              py: '9px',
+            },
+            '& input::placeholder': {
+              opacity: 1,
+              color: D.muted,
+            },
           }}
         />
 
@@ -302,12 +487,18 @@ export default function CompanionDialog({ open, onClose, messages, busy, onSend,
           sx={{
             width: 40,
             height: 40,
+            flexShrink: 0,
             borderRadius: '6px',
             color: '#fff',
             bgcolor: D.navy,
-            '&:hover': { bgcolor: '#0D1C47' },
+            '&:hover': {
+              bgcolor: '#0D1C47',
+            },
             '&:focus-visible': focusRing,
-            '&.Mui-disabled': { bgcolor: D.line, color: D.muted },
+            '&.Mui-disabled': {
+              bgcolor: D.line,
+              color: D.muted,
+            },
           }}
         >
           <SendRoundedIcon sx={{ fontSize: 19 }} />

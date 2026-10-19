@@ -1,4 +1,28 @@
 const STORAGE_KEY = 'meetai-meeting-settings'
+const CHANGED_EVENT = 'meetai-settings-changed'
+
+/*
+ * Every write announces itself, so any page showing MeetAI switches (Dashboard,
+ * Calendar, Meeting Details) can refresh straight away. The browser's own
+ * "storage" event covers changes made in another tab.
+ */
+function notifySettingsChanged() {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event(CHANGED_EVENT))
+  }
+}
+
+export function subscribeMeetingSettings(listener) {
+  if (typeof window === 'undefined') return () => {}
+
+  window.addEventListener(CHANGED_EVENT, listener)
+  window.addEventListener('storage', listener)
+
+  return () => {
+    window.removeEventListener(CHANGED_EVENT, listener)
+    window.removeEventListener('storage', listener)
+  }
+}
 
 function readStoredSettings() {
   if (typeof window === 'undefined') {
@@ -44,6 +68,8 @@ function writeStoredSettings(settings) {
   } catch {
     // Ignore localStorage failures.
   }
+
+  notifySettingsChanged()
 }
 
 /*
@@ -306,4 +332,6 @@ export function clearAllMeetingSettings() {
   } catch {
     // Ignore localStorage failures.
   }
+
+  notifySettingsChanged()
 }

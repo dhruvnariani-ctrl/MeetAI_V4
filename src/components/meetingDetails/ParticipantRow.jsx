@@ -1,135 +1,40 @@
 import Box from '@mui/material/Box'
 import Typography from '@mui/material/Typography'
 
+import { D } from '../dashboard/dashTheme'
 import { getInitials, getParticipantAttendance } from './utils'
 
-export default function ParticipantRow({
-  person,
-  attended,
-  meeting,
-}) {
-  const initials = getInitials(
-    person.name,
-  )
+const ERROR = '#B3261E'
 
-  const attendanceInfo =
-    getParticipantAttendance(
-      meeting,
-      person,
-      attended,
-    )
+export default function ParticipantRow({ person, attended, meeting }) {
+  const info = getParticipantAttendance(meeting, person, attended)
+  const color = attended === true ? D.greenText : attended === false ? ERROR : D.muted
 
   return (
-    <Box
-      sx={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        gap: 1.5,
-        p: 1,
-        borderRadius: '12px',
-        bgcolor: attended
-          ? '#f8fbf9'
-          : '#fafafa',
-      }}
-    >
-      <Box
-        sx={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 1,
-          minWidth: 0,
-        }}
-      >
+    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1.5, px: 1.5, py: 1, bgcolor: '#F7F9FE', border: `1px solid ${D.line}`, borderRadius: '6px' }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, minWidth: 0 }}>
         <Box
-          sx={{
-            width: 30,
-            height: 30,
-            borderRadius: '50%',
-            bgcolor: attended === true
-              ? '#e7f4ec'
-              : attended === false
-                ? '#fbeaea'
-                : '#eef1f4',
-            color: attended === true
-              ? '#287a4d'
-              : attended === false
-                ? '#b42318'
-                : '#68778a',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: '0.75rem',
-            fontWeight: 700,
-            flexShrink: 0,
-          }}
+          aria-hidden="true"
+          sx={{ width: 32, height: 32, flexShrink: 0, display: 'grid', placeItems: 'center', borderRadius: '50%', bgcolor: '#DCE5F7', color: D.navy, fontSize: '.6875rem', fontWeight: 700 }}
         >
-          {initials}
+          {getInitials(person.name)}
         </Box>
 
         <Box sx={{ minWidth: 0 }}>
-          <Typography
-            sx={{
-              fontSize: '0.75rem',
-              fontWeight: 600,
-              color: '#24364d',
-            }}
-          >
-            {person.name}
-          </Typography>
-
+          <Typography sx={{ fontSize: '.8125rem', fontWeight: 600, color: D.navy }}>{person.name}</Typography>
           {person.email && (
-            <Typography
-              sx={{
-                mt: 0.15,
-                fontSize: '0.75rem',
-                color: '#7b8ba1',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
-              }}
-            >
+            <Typography noWrap sx={{ fontSize: '.6875rem', color: D.muted }}>
               {person.email}
             </Typography>
           )}
         </Box>
       </Box>
 
-      <Box
-        sx={{
-          textAlign: 'right',
-          flexShrink: 0,
-        }}
-      >
-        <Typography
-          sx={{
-            fontSize: '0.75rem',
-            fontWeight: 600,
-            color: attended === true
-              ? '#287a4d'
-              : attended === false
-                ? '#b42318'
-                : '#68778a',
-          }}
-        >
-          {attended === true
-            ? 'Attended'
-            : attended === false
-              ? 'Did not attend'
-              : 'Not yet started'}
+      <Box sx={{ textAlign: 'right', flexShrink: 0 }}>
+        <Typography sx={{ fontSize: '.75rem', fontWeight: 600, color }}>
+          {attended === true ? 'Attended' : attended === false ? 'Did not attend' : 'Not yet started'}
         </Typography>
-
-        {attendanceInfo && (
-          <Typography
-            sx={{
-              mt: 0.2,
-              fontSize: '0.75rem',
-              color: '#7b8ba1',
-            }}
-          >
-            {attendanceInfo}
-          </Typography>
-        )}
+        {info && <Typography sx={{ fontSize: '.6875rem', color: D.muted }}>{info}</Typography>}
       </Box>
     </Box>
   )

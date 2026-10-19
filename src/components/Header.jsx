@@ -91,7 +91,7 @@ export default function Header({
   const renderNavigation = (mobile = false) => {
     if (mobile) {
       return (
-        <List disablePadding>
+        <List disablePadding data-tour='sidebar-navigation'>
           {NAV_ITEMS.map((item) => (
             <ListItemButton
               key={item.to}
@@ -131,6 +131,7 @@ export default function Header({
 
     return (
       <Box
+        data-tour='sidebar-navigation'
         component="nav"
         aria-label="Main navigation"
         sx={{
@@ -335,7 +336,7 @@ export default function Header({
       >
         {compactHeader ? (
           /* TABLET AND MOBILE HEADER */
-          <Box sx={{ width: '100%' }}>
+          <Box sx={{ width: '100%' }} >
             <Toolbar
               disableGutters
               sx={{

@@ -4,32 +4,16 @@ import Typography from '@mui/material/Typography'
 
 import PlayArrowOutlinedIcon from '@mui/icons-material/PlayArrowOutlined'
 
+import { D } from '../dashboard/dashTheme'
 import { SectionCard, NotReadyCard } from './ui'
 
-/* -------------------------------------------------------------------------- */
-/* Recording                                                                  */
-/* -------------------------------------------------------------------------- */
+export default function RecordingTab({ meeting, meetingState }) {
+  const upcoming = meetingState?.type === 'upcoming'
 
-export default function RecordingTab({
-  meeting,
-  meetingState,
-}) {
-  const available =
-    meeting.recording?.available === true
-
-  if (!available) {
+  if (meeting.recording?.available !== true) {
     return (
-      <NotReadyCard
-        icon={
-          <PlayArrowOutlinedIcon />
-        }
-        title={
-          meetingState?.type === 'upcoming'
-            ? 'Recording is not available yet'
-            : 'No recording available'
-        }
-      >
-        {meetingState?.type === 'upcoming'
+      <NotReadyCard title={upcoming ? 'Recording is not available yet' : 'No recording available'}>
+        {upcoming
           ? 'The meeting has not happened yet, so there is no recording to watch.'
           : 'A recording was not saved for this meeting.'}
       </NotReadyCard>
@@ -37,48 +21,29 @@ export default function RecordingTab({
   }
 
   return (
-    <SectionCard
-      icon={<PlayArrowOutlinedIcon />}
-      title="Recording"
-    >
-      <Box
-        sx={{
-          minHeight: {
-            xs: 220,
-            sm: 360,
-          },
-          borderRadius: '12px',
-          bgcolor: '#172b46',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
+    <SectionCard title="Recording">
+      <Box sx={{ minHeight: { xs: 220, sm: 360 }, display: 'grid', placeItems: 'center', borderRadius: '6px', bgcolor: D.card }}>
         <Button
           variant="contained"
-          startIcon={
-            <PlayArrowOutlinedIcon />
-          }
+          disableElevation
+          startIcon={<PlayArrowOutlinedIcon />}
           sx={{
+            minHeight: 44,
+            px: 3,
+            borderRadius: '6px',
             textTransform: 'none',
             fontWeight: 600,
-            px: 2.5,
+            bgcolor: D.green,
+            '&:hover': { bgcolor: '#2C6C16' },
+            '&:focus-visible': { outline: '2px solid #fff', outlineOffset: 2 },
           }}
         >
           Play recording
         </Button>
       </Box>
 
-      <Typography
-        sx={{
-          mt: 1.5,
-          fontSize: '0.75rem',
-          color: '#66778d',
-        }}
-      >
-        {meeting.recording.duration
-          ? `Recording duration: ${meeting.recording.duration}`
-          : 'Recording available'}
+      <Typography sx={{ mt: 1.5, fontSize: '.75rem', color: D.muted }}>
+        {meeting.recording.duration ? `Recording duration: ${meeting.recording.duration}` : 'Recording available'}
       </Typography>
     </SectionCard>
   )

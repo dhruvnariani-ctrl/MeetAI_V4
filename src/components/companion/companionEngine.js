@@ -1,4 +1,10 @@
-/* Local, rule-based replies built from the meetings you pass in. No server needed. */
+
+/* Local, rule-based replies built from the meetings you pass in.
+ * No server or external API required.
+ */
+
+import { filterUserMeetings } from '../../utils/meetingAccess'
+import { getTasksFromDashboard } from '../../data/tasks'
 
 export const DEFAULT_ROUTES = {
   calendar: '/calendar',
@@ -22,44 +28,97 @@ export const GREETING = {
   actions: [],
 }
 
-const startOf = (m) => new Date(m?.start).getTime()
-const time = (v) => new Date(v).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
-const day = (v) => new Date(v).toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short' })
-const sameDay = (a, b) => new Date(a).toDateString() === new Date(b).toDateString()
-const isDone = (item) => item.status === 'Done' || item.completed === true
-const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`
+const startOf = (meeting) => new Date(meeting?.start).getTime()
 
-function formatIn(ms) {
-  const minutes = Math.max(1, Math.round(ms / 60000))
+const time = (value) =>
+  new Date(value).toLocaleTimeString([], {
+    hour: 'numeric',
+    minute: '2-digit',
+  })
+
+const day = (value) =>
+  new Date(value).toLocaleDateString([], {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+  })
+
+const sameDay = (a, b) =>
+  new Date(a).toDateString() === new Date(b).toDateString()
+
+const isDone = (item) =>
+  item.status === 'Done' || item.completed === true
+
+const plural = (count, word) =>
+  `${count} ${word}${count === 1 ? '' : 's'}`
+
+function formatIn(milliseconds) {
+  const minutes = Math.max(1, Math.round(milliseconds / 60000))
+
   if (minutes < 60) return `${minutes} min`
+
   const hours = Math.floor(minutes / 60)
-  if (hours < 24) return `${hours}h ${minutes % 60}m`
+
+  if (hours < 24) {
+    return `${hours}h ${minutes % 60}m`
+  }
+
   return plural(Math.round(hours / 24), 'day')
 }
 
 /*
- * Returns { text, actions }.
- * action = { label, to }            -> navigates to a route
- *        | { label, command }       -> 'create' | 'instant' (opens a dialog, if the app provides one)
+ * Returns:
+ * { text, actions }
+ *
+ * action = { label, to }
+ *        | { label, command: 'create' | 'instant' }
  */
-export function getReply(input, { meetings = [], routes = DEFAULT_ROUTES, now = new Date() }) {
-  const q = input.toLowerCase().trim()
+export function getReply(
+  input,
+  {
+    meetings = [],
+    currentUser,
+    routes = DEFAULT_ROUTES,
+    now = new Date(),
+  } = {},
+) {
+  const q = String(input ?? '').toLowerCase().trim()
   const nowMs = now.getTime()
-  const list = meetings
-    .filter((m) => Number.isFinite(startOf(m)))
+
+  /*
+   * Do not expose personal meeting data if the current user is unavailable.
+   * All meeting-based replies use this filtered list.
+   */
+  const userMeetings = currentUser
+    ? filterUserMeetings(
+        Array.isArray(meetings) ? meetings : [],
+        currentUser,
+      )
+    : []
+
+  const list = userMeetings
+    .filter((meeting) => Number.isFinite(startOf(meeting)))
     .sort((a, b) => startOf(a) - startOf(b))
 
   const go = (label, to) => ({ label, to })
 
   /* Greeting */
   if (/^(hi|hello|hey|good (morning|afternoon|evening))\b/.test(q)) {
-    return { text: 'Hello! Ask me about your meetings, tasks or recordings.', actions: [] }
+    return {
+      text: 'Hello! Ask me about your meetings, tasks or recordings.',
+      actions: [],
+    }
   }
 
   /* Create / schedule */
-  if (/(create|schedule|set up|book|new).*(meeting|event)|(start|record).*(meeting|instant)/.test(q)) {
+  if (
+    /(create|schedule|set up|book|new).*(meeting|event)|(start|record).*(meeting|instant)/.test(
+      q,
+    )
+  ) {
     return {
-      text: 'I can help with that. You can schedule an event for later, or start recording an instant meeting from a link.',
+      text:
+        'I can help with that. You can schedule an event for later, or start recording an instant meeting from a link.',
       actions: [
         { label: 'Schedule an event', command: 'create' },
         { label: 'Record instant meeting', command: 'instant' },
@@ -71,57 +130,138 @@ export function getReply(input, { meetings = [], routes = DEFAULT_ROUTES, now = 
   if (/how.*(work|use)|tour|guide|getting started|help/.test(q)) {
     return {
       text:
-        'MeetAI has four main areas:\n• Dashboard – your day at a glance\n• Calendar – see and manage meetings\n• Recorded Meetings – watch and catch up\n• My Tasks – action items from your meetings\n\nThe How It Works page has a guided tour.',
+        'MeetAI has four main areas:\n' +
+        '• Dashboard – your day at a glance\n' +
+        '• Calendar – see and manage meetings\n' +
+        '• Recorded Meetings – watch and catch up\n' +
+        '• My Tasks – action items from your meetings\n\n' +
+        'The How It Works page has a guided tour.',
       actions: [go('Open How It Works', routes.howItWorks)],
     }
   }
 
-  /* Tasks */
+  /* Tasks — use the same filtering as the My Tasks page */
   if (/task|action item|to-?do|pending|follow/.test(q)) {
-    const items = list.flatMap((m) => (m.actionItems || []).map((i) => ({ ...i, meeting: m.title })))
-    const pending = items.filter((i) => !isDone(i))
-
-    if (!items.length) {
-      return { text: 'There are no action items yet. They appear after your meetings.', actions: [go('Open My Tasks', routes.tasks)] }
+    if (!currentUser) {
+      return {
+        text:
+          'I cannot check your tasks because your current user could not be identified.',
+        actions: [go('Open My Tasks', routes.tasks)],
+      }
     }
 
-    const lines = pending.slice(0, 4).map((i) => `• ${i.title}${i.meeting ? ` (${i.meeting})` : ''}`)
+    /*
+     * getTasksFromDashboard already:
+     * 1. Filters meetings for the current user.
+     * 2. Extracts their action items.
+     * 3. Filters tasks with filterUserTasks(currentUser).
+     *
+     * Do not replace this with meeting.actionItems directly.
+     */
+    const userTasks = getTasksFromDashboard(currentUser)
+
+    const pending = userTasks.filter(
+      (task) => !isDone(task),
+    )
+
+    if (!userTasks.length) {
+      return {
+        text: 'You have no tasks assigned to you yet.',
+        actions: [go('Open My Tasks', routes.tasks)],
+      }
+    }
+
+    const lines = pending
+      .slice(0, 4)
+      .map(
+        (task) =>
+          `• ${task.title || 'Untitled task'}${
+            task.meetingTitle || task.meeting
+              ? ` (${task.meetingTitle || task.meeting})`
+              : ''
+          }`,
+      )
+
     return {
       text: pending.length
-        ? `You have ${plural(pending.length, 'pending action item')} out of ${items.length}:\n${lines.join('\n')}`
-        : `All ${plural(items.length, 'action item')} are done. Nice work!`,
+        ? `You have ${plural(pending.length, 'open task')} out of ${userTasks.length} assigned to you:\n${lines.join('\n')}`
+        : `All ${plural(userTasks.length, 'task')} assigned to you are done. Nice work!`,
       actions: [go('Open My Tasks', routes.tasks)],
     }
   }
 
-  /* Today */
+  /* Today's meetings */
   if (/today|tonight/.test(q)) {
-    const today = list.filter((m) => sameDay(m.start, now))
+    if (!currentUser) {
+      return {
+        text:
+          'I cannot check your meetings because your current user could not be identified.',
+        actions: [go('Open calendar', routes.calendar)],
+      }
+    }
+
+    const today = list.filter((meeting) =>
+      sameDay(meeting.start, now),
+    )
+
     return {
       text: today.length
-        ? `You have ${plural(today.length, 'meeting')} today:\n${today.map((m) => `• ${time(m.start)} – ${m.title || 'Untitled meeting'}`).join('\n')}`
+        ? `You have ${plural(today.length, 'meeting')} today:\n${today
+            .map(
+              (meeting) =>
+                `• ${time(meeting.start)} – ${
+                  meeting.title || 'Untitled meeting'
+                }`,
+            )
+            .join('\n')}`
         : 'You have no meetings today.',
       actions: [go('Open calendar', routes.calendar)],
     }
   }
 
-  /* Next / upcoming */
+  /* Next / upcoming meetings */
   if (/next|upcoming|coming up|soon/.test(q)) {
-    const upcoming = list.filter((m) => startOf(m) > nowMs).slice(0, 3)
+    if (!currentUser) {
+      return {
+        text:
+          'I cannot check your meetings because your current user could not be identified.',
+        actions: [go('Open calendar', routes.calendar)],
+      }
+    }
+
+    const upcoming = list
+      .filter((meeting) => startOf(meeting) > nowMs)
+      .slice(0, 3)
 
     if (!upcoming.length) {
-      return { text: 'You have no upcoming meetings.', actions: [go('Open calendar', routes.calendar)] }
+      return {
+        text: 'You have no upcoming meetings.',
+        actions: [go('Open calendar', routes.calendar)],
+      }
     }
 
     const [first, ...rest] = upcoming
+
     const more = rest.length
-      ? `\n\nAfter that:\n${rest.map((m) => `• ${day(m.start)}, ${time(m.start)} – ${m.title || 'Untitled meeting'}`).join('\n')}`
+      ? `\n\nAfter that:\n${rest
+          .map(
+            (meeting) =>
+              `• ${day(meeting.start)}, ${time(meeting.start)} – ${
+                meeting.title || 'Untitled meeting'
+              }`,
+          )
+          .join('\n')}`
       : ''
 
     return {
-      text: `Your next meeting is “${first.title || 'Untitled meeting'}” on ${day(first.start)} at ${time(first.start)}, in ${formatIn(startOf(first) - nowMs)}.${more}`,
+      text:
+        `Your next meeting is “${first.title || 'Untitled meeting'}” ` +
+        `on ${day(first.start)} at ${time(first.start)}, ` +
+        `in ${formatIn(startOf(first) - nowMs)}.${more}`,
       actions: [
-        ...(first.id ? [go('Open meeting', routes.meeting(first.id))] : []),
+        ...(first.id
+          ? [go('Open meeting', routes.meeting(first.id))]
+          : []),
         go('Open calendar', routes.calendar),
       ],
     }
@@ -130,16 +270,34 @@ export function getReply(input, { meetings = [], routes = DEFAULT_ROUTES, now = 
   /* Recordings / transcripts */
   if (/record|transcript|past meeting|completed|watch/.test(q)) {
     const recorded = list
-      .filter((m) => m.recording?.available || m.transcript?.available)
+      .filter(
+        (meeting) =>
+          meeting.recording?.available ||
+          meeting.transcript?.available,
+      )
       .reverse()
       .slice(0, 3)
 
     return {
       text: recorded.length
-        ? `Your latest meetings with a recording or transcript:\n${recorded.map((m) => `• ${day(m.start)} – ${m.title || 'Untitled meeting'}`).join('\n')}`
+        ? `Your latest meetings with a recording or transcript:\n${recorded
+            .map(
+              (meeting) =>
+                `• ${day(meeting.start)} – ${
+                  meeting.title || 'Untitled meeting'
+                }`,
+            )
+            .join('\n')}`
         : 'No recordings or transcripts are available yet.',
       actions: [
-        ...(recorded[0]?.id ? [go('Open latest recording', `${routes.meeting(recorded[0].id)}?tab=recording`)] : []),
+        ...(recorded[0]?.id
+          ? [
+              go(
+                'Open latest recording',
+                `${routes.meeting(recorded[0].id)}?tab=recording`,
+              ),
+            ]
+          : []),
         go('Recorded Meetings', routes.recorded),
       ],
     }
@@ -155,7 +313,8 @@ export function getReply(input, { meetings = [], routes = DEFAULT_ROUTES, now = 
   }
 
   return {
-    text: "I'm not sure about that yet. Try asking about today's meetings, your next meeting, pending tasks, recordings, or how MeetAI works.",
+    text:
+      "I'm not sure about that yet. Try asking about today's meetings, your next meeting, pending tasks, recordings, or how MeetAI works.",
     actions: [],
   }
 }

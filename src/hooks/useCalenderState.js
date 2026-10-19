@@ -1,10 +1,11 @@
 import { useMemo, useState } from 'react'
 
 import {
-  createMeetingSettings,
   saveMeetingSettings,
   saveMeetingSettingsBulk,
 } from '../data/meetingSettings'
+
+import useMeetingSettings from './useMeetingSettings'
 
 import {
   dateKey,
@@ -102,11 +103,10 @@ export default function useCalendarState(user) {
   const [filters, setFilters] = useState(DEFAULT_FILTERS)
 
   /*
-   * Saved MeetAI settings first, then meeting.meetAI defaults.
+   * Saved MeetAI settings (shared with the Dashboard and Meeting Details).
+   * Meetings without a saved value fall back to meeting.meetAI in getMeetingToggleSettings.
    */
-  const [settings, setSettings] = useState(() =>
-    createMeetingSettings(meetings),
-  )
+  const settings = useMeetingSettings()
 
   const selectedKey = dateKey(selectedDate)
 
@@ -232,15 +232,16 @@ export default function useCalendarState(user) {
   const allVisibleAutoJoin =
     activeVisibleMeetings.length > 0 &&
     activeVisibleMeetings.every(
-      (meeting) => settings?.[meeting.id]?.autoJoin === true,
+      (meeting) => getMeetingToggleSettings(meeting, settings?.[meeting.id]).autoJoin,
     )
 
+  // Saving announces the change, and useMeetingSettings picks it up.
   const onSettingsChange = (meetingId, changes) => {
-    setSettings(saveMeetingSettings(meetingId, changes))
+    saveMeetingSettings(meetingId, changes)
   }
 
   const handleToolbarAutoJoin = (checked) => {
-    setSettings(saveMeetingSettingsBulk(activeVisibleMeetings, checked))
+    saveMeetingSettingsBulk(activeVisibleMeetings, checked)
   }
 
   /* ---------------------------------------------------------------- */

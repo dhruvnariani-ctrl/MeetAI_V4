@@ -26,7 +26,7 @@ export default function MyTasks() {
 
   const [tasks, setTasks] = useState(() => getTasksFromDashboard(currentUser))
 
-  const [filter, setFilter] = useState('All')
+  const [filter, setFilter] = useState('Open')
   const [sortBy, setSortBy] = useState('My Order')
   const [dueDate, setDueDate] = useState('default')
   const [expandedTaskId, setExpandedTaskId] = useState(null)

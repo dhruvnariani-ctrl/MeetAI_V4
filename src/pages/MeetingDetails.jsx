@@ -1,25 +1,21 @@
 import { useEffect, useState } from 'react'
-import {
-  useNavigate,
-  useParams,
-  useSearchParams,
-} from 'react-router-dom'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
-import Stack from '@mui/material/Stack'
 
 import ArrowBackRoundedIcon from '@mui/icons-material/ArrowBackRounded'
 
-import PageShell, { EmptyPanel } from '../components/PageShell'
+import { EmptyPanel } from '../components/PageShell'
 import MeetingHeader from '../components/meetingDetails/MeetingHeader'
-import MeetingTabs, {
-  VALID_TABS,
-} from '../components/meetingDetails/MeetingTabs'
+import MeetingRail from '../components/meetingDetails/MeetingRail'
+import MeetingTabs, { VALID_TABS } from '../components/meetingDetails/MeetingTabs'
 import OverviewTab from '../components/meetingDetails/OverviewTab'
 import RecordingTab from '../components/meetingDetails/RecordingTab'
 import TranscriptTab from '../components/meetingDetails/TranscriptTab'
 import ActionItemsTab from '../components/meetingDetails/ActionItemsTab'
+import { D } from '../components/dashboard/dashTheme'
+import { getMeetingToggleSettings } from '../components/meetings/meetingHelpers'
 
 import {
   getMeetingState,
@@ -31,17 +27,12 @@ import {
 import { formatDate } from '../utils/time'
 import usePageTitle from '../hooks/usePageTitle'
 import { getMeetingById } from '../data/meetings'
-import { getMeetingSettings } from '../data/meetingSettings'
+import { saveMeetingSettings } from '../data/meetingSettings'
+import useMeetingSettings from '../hooks/useMeetingSettings'
 
-const NAVY = '#123A59'
-const BLUE = '#0967B2'
-const BACKGROUND = '#F7F9FB'
-
-function getTabFromSearchParams(searchParams) {
-  const requestedTab = searchParams.get('tab')
-  return VALID_TABS.includes(requestedTab)
-    ? requestedTab
-    : 'overview'
+const getTabFromSearchParams = (searchParams) => {
+  const requested = searchParams.get('tab')
+  return VALID_TABS.includes(requested) ? requested : 'overview'
 }
 
 export default function MeetingDetails() {
@@ -52,50 +43,38 @@ export default function MeetingDetails() {
   const [searchParams, setSearchParams] = useSearchParams()
 
   const [now, setNow] = useState(() => new Date())
+  const savedSettings = useMeetingSettings() // live: changes made on any page show here
+
   const activeTab = getTabFromSearchParams(searchParams) // the URL is the single source of truth
   const meeting = getMeetingById(meetingId)
 
   useEffect(() => {
-    const timer = window.setInterval(() => {
-      setNow(new Date())
-    }, 30000)
-
+    const timer = window.setInterval(() => setNow(new Date()), 30000)
     return () => window.clearInterval(timer)
   }, [])
 
   if (!meeting) {
     return (
-      <PageShell
-        title="Meeting not found"
-        subtitle="We couldn't find the meeting you're looking for."
+      <EmptyPanel
+        title="This meeting is not available"
+        action={
+          <Button startIcon={<ArrowBackRoundedIcon />} onClick={() => navigate(-1)}>
+            Go back
+          </Button>
+        }
       >
-        <EmptyPanel
-          title="This meeting is not available"
-          action={
-            <Button startIcon={<ArrowBackRoundedIcon />} onClick={() => navigate(-1)}>
-              Go back
-            </Button>
-          }
-        >
-          The meeting may have been removed or is no longer available.
-        </EmptyPanel>
-      </PageShell>
+        The meeting may have been removed or is no longer available.
+      </EmptyPanel>
     )
   }
 
   const meetingState = getMeetingState(meeting, now)
 
-  // A saved false value must override the meeting's original invited setting.
-  const savedSettings = getMeetingSettings()
-  const savedMeetingSettings = savedSettings?.[meeting.id]
+  // A saved value overrides the meeting's original MeetAI setting; the same store is used by the Dashboard and Calendar.
+  const settings = getMeetingToggleSettings(meeting, savedSettings?.[meeting.id])
+  const handleSettingsChange = (changes) => saveMeetingSettings(meeting.id, changes)
 
-  const meetAIInvited =
-    savedMeetingSettings?.autoJoin !== undefined
-      ? savedMeetingSettings.autoJoin === true
-      : meeting?.meetAI?.invited === true
-
-  const participants = meeting.participants || []
-  const attendance = getAttendance(meeting, participants)
+  const attendance = getAttendance(meeting, meeting.participants || [])
   const durationMinutes = getDurationMinutes(meeting)
   const timeText = formatTimeRange(meeting.start, meeting.end)
   const dateText = formatDate(meeting.start)
@@ -104,10 +83,10 @@ export default function MeetingDetails() {
     if (!VALID_TABS.includes(value)) return
 
     setSearchParams(
-      (currentParams) => {
-        const nextParams = new URLSearchParams(currentParams)
-        nextParams.set('tab', value)
-        return nextParams
+      (current) => {
+        const next = new URLSearchParams(current)
+        next.set('tab', value)
+        return next
       },
       { replace: true },
     )
@@ -115,128 +94,55 @@ export default function MeetingDetails() {
 
   const goToTab = (value) => handleTabChange(null, value)
 
-return (
-  <PageShell title="" subtitle="">
-    <Box
-      sx={{
-        width: '100%',
-        maxWidth: 1600,
-        mx: 'auto',
-        color: NAVY,
-        boxSizing: 'border-box',
-        minWidth: 0,
-      }}
-    >
-      <Stack
-        spacing={1.5}
+  return (
+    <Box sx={{ width: '100%', minWidth: 0, color: D.text }}>
+      <Box data-tour="meeting-header">
+        <MeetingHeader
+          meeting={meeting}
+          meetingState={meetingState}
+          dateText={dateText}
+          timeText={timeText}
+          durationMinutes={durationMinutes}
+          onBack={() => navigate(-1)}
+          onViewRecording={() => goToTab('recording')}
+        />
+      </Box>
+
+      <Box
         sx={{
-          width: '100%',
-          minWidth: 0,
-          alignItems: 'stretch',
+          display: 'grid',
+          gridTemplateColumns: { xs: 'minmax(0, 1fr)', lg: '300px minmax(0, 1fr)' },
+          columnGap: 4,
+          rowGap: 3,
+          alignItems: 'start',
+          pt: 3,
         }}
       >
-        {/* Page navigation */}
-        <Box sx={{ width: '100%', minWidth: 0 }}>
-          <Button
-            startIcon={<ArrowBackRoundedIcon />}
-            onClick={() => navigate(-1)}
-            sx={{
-              textTransform: 'none',
-              fontSize: '0.8125rem',
-              fontWeight: 650,
-              color: NAVY,
-              px: 0,
-              '&:hover': {
-                bgcolor: 'transparent',
-                color: BLUE,
-              },
-            }}
-          >
-            Back to meetings
-          </Button>
+        <MeetingRail
+          meeting={meeting}
+          meetingState={meetingState}
+          attendance={attendance}
+          durationMinutes={durationMinutes}
+          dateText={dateText}
+          timeText={timeText}
+          settings={settings}
+          onSettingsChange={handleSettingsChange}
+          onNavigate={goToTab}
+        />
+
+        <Box sx={{ minWidth: 0 }}>
+          <MeetingTabs value={activeTab} onChange={handleTabChange} />
+
+          <Box data-tour="meeting-content" sx={{ mt: 3 }}>
+            {activeTab === 'overview' && (
+              <OverviewTab meeting={meeting} meetingState={meetingState} onNavigate={goToTab} />
+            )}
+            {activeTab === 'recording' && <RecordingTab meeting={meeting} meetingState={meetingState} />}
+            {activeTab === 'transcript' && <TranscriptTab meeting={meeting} meetingState={meetingState} />}
+            {activeTab === 'actions' && <ActionItemsTab meeting={meeting} meetingState={meetingState} />}
+          </Box>
         </Box>
-
-        {/* Main meeting header */}
-        <Box
-          data-tour="meeting-header"
-          sx={{ width: '100%', minWidth: 0 }}
-        >
-          <MeetingHeader
-            meeting={meeting}
-            meetingState={meetingState}
-            dateText={dateText}
-            timeText={timeText}
-            durationMinutes={durationMinutes}
-            onViewRecording={() => goToTab('recording')}
-          />
-        </Box>
-
-        {/* Tabs */}
-        <Box
-          sx={{
-            width: '100%',
-            minWidth: 0,
-            position: 'sticky',
-            top: 0,
-            zIndex: 2,
-            bgcolor: BACKGROUND,
-            boxSizing: 'border-box',
-          }}
-        >
-          <MeetingTabs
-            value={activeTab}
-            onChange={handleTabChange}
-          />
-        </Box>
-
-        {/* Active tab content */}
-        <Box
-          sx={{
-            width: '100%',
-            minWidth: 0,
-            boxSizing: 'border-box',
-            '& > *': {
-              width: '100%',
-              maxWidth: 'none',
-              minWidth: 0,
-              boxSizing: 'border-box',
-            },
-          }}
-        >
-          {activeTab === 'overview' && (
-            <OverviewTab
-              meeting={meeting}
-              meetingState={meetingState}
-              attendance={attendance}
-              durationMinutes={durationMinutes}
-              meetAIInvited={meetAIInvited}
-              onNavigate={goToTab}
-            />
-          )}
-
-          {activeTab === 'recording' && (
-            <RecordingTab
-              meeting={meeting}
-              meetingState={meetingState}
-            />
-          )}
-
-          {activeTab === 'transcript' && (
-            <TranscriptTab
-              meeting={meeting}
-              meetingState={meetingState}
-            />
-          )}
-
-          {activeTab === 'actions' && (
-            <ActionItemsTab
-              meeting={meeting}
-              meetingState={meetingState}
-            />
-          )}
-        </Box>
-      </Stack>
+      </Box>
     </Box>
-  </PageShell>
-)
+  )
 }

@@ -19,6 +19,7 @@ import WbSunnyOutlinedIcon from '@mui/icons-material/WbSunnyOutlined'
 
 import { EmptyPanel } from '../PageShell'
 import MeetingToggles from '../MeetingToggles'
+import { getMeetingToggleSettings } from '../meetings/meetingHelpers'
 import { formatTime, joinUrlOf, participantCount, platformOf, statusOf } from './dashboardUtils'
 import { D, linkSx, sectionHeadSx, time24, titleSx } from './dashTheme'
 
@@ -52,11 +53,11 @@ const openItemCount = (meeting) =>
     (item) => !['done', 'completed'].includes(String(item.status ?? '').toLowerCase()),
   ).length
 
-const settingsFor = (meeting, all) =>
-  all?.[meeting.id] ?? {
-    autoJoin: meeting?.meetAI?.invited === true,
-    recordVideo: meeting?.meetAI?.recordVideo === true,
-  }
+// Saved value first, then the meeting's own MeetAI default. Video recording needs MeetAI on.
+const settingsFor = (meeting, all) => {
+  const saved = getMeetingToggleSettings(meeting, all?.[meeting.id])
+  return { autoJoin: saved.autoJoin === true, recordVideo: saved.autoJoin === true && saved.recordVideo === true }
+}
 
 function TimeCell({ start, end }) {
   return (
@@ -286,7 +287,7 @@ function UpcomingRow({ meeting, settings, onSettingsChange, first }) {
 
 export default function MeetingTimeline({ meetings = [], now, meetingSettings = {}, onSettingsChange }) {
   const navigate = useNavigate()
-  const [showDone, setShowDone] = useState(true)
+  const [showDone, setShowDone] = useState(false)
 
   const past = meetings.filter((meeting) => statusOf(meeting, now) === 'past')
   const live = meetings.filter((meeting) => statusOf(meeting, now) === 'live')

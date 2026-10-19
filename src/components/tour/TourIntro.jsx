@@ -31,18 +31,18 @@ export default function TourIntro({ onStart, onSkip }) {
         aria-modal="true"
         aria-labelledby={titleId}
         elevation={0}
-        sx={{ width: '100%', maxWidth: 480, borderRadius: '6px', overflow: 'hidden', boxShadow: '0 20px 50px rgba(20, 39, 94, .35)' }}
+        sx={{ width: '100%', maxWidth: 480, maxHeight: '100%', borderRadius: '6px', overflowX: 'hidden', overflowY: 'auto', boxShadow: '0 20px 50px rgba(20, 39, 94, .35)' }}
       >
-        <Box sx={{ px: 3, py: 2.5, bgcolor: D.band }}>
+        <Box sx={{ px: { xs: 2, sm: 3 }, py: { xs: 2, sm: 2.5 }, bgcolor: D.band }}>
           <Typography sx={{ fontSize: '.6875rem', fontWeight: 500, letterSpacing: '.06em', textTransform: 'uppercase', color: D.muted }}>
             MeetAI guided tour
           </Typography>
-          <Typography id={titleId} component="h2" sx={{ mt: 0.25, fontFamily: serif, fontWeight: 400, fontSize: '2.1rem', lineHeight: 1.1, color: D.navy }}>
+          <Typography id={titleId} component="h2" sx={{ mt: 0.25, fontFamily: serif, fontWeight: 400, fontSize: { xs: '1.7rem', sm: '2.1rem' }, lineHeight: 1.1, color: D.navy }}>
             Take a quick tour
           </Typography>
         </Box>
 
-        <Box sx={{ p: 3, display: 'grid', gap: 2 }}>
+        <Box sx={{ p: { xs: 2, sm: 3 }, display: 'grid', gap: 2 }}>
           <Typography sx={{ fontSize: '.875rem', lineHeight: 1.6, color: D.text }}>
             We&rsquo;ll walk you through the top menu, dashboard, calendar, recordings, meeting details and tasks so you
             know where everything is.
@@ -52,7 +52,7 @@ export default function TourIntro({ onStart, onSkip }) {
             Follow the highlighted areas and use Next to move on. Press Escape or Skip to stop at any time.
           </TourHint>
 
-          <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'flex-end', flexWrap: 'wrap', gap: 1 }}>
             <Button onClick={onSkip} sx={{ textTransform: 'none', color: D.muted, fontWeight: 500 }}>
               Not now
             </Button>

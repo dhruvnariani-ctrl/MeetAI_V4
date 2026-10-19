@@ -88,7 +88,7 @@ const CONTENT = [
     has: (meeting) => meeting.transcript?.available,
   },
   {
-    tab: 'notes',
+    tab: 'overview',
     label: 'Meeting notes',
     action: 'Open notes',
     Icon: NotesOutlinedIcon,

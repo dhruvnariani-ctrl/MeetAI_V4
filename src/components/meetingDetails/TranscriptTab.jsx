@@ -1,34 +1,16 @@
 import Box from '@mui/material/Box'
 import Typography from '@mui/material/Typography'
 
-import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined'
-
+import { D } from '../dashboard/dashTheme'
 import { SectionCard, NotReadyCard } from './ui'
 
-/* -------------------------------------------------------------------------- */
-/* Transcript                                                                 */
-/* -------------------------------------------------------------------------- */
+export default function TranscriptTab({ meeting, meetingState }) {
+  const upcoming = meetingState?.type === 'upcoming'
 
-export default function TranscriptTab({
-  meeting,
-  meetingState,
-}) {
-  const available =
-    meeting.transcript?.available === true
-
-  if (!available) {
+  if (meeting.transcript?.available !== true) {
     return (
-      <NotReadyCard
-        icon={
-          <DescriptionOutlinedIcon />
-        }
-        title={
-          meetingState?.type === 'upcoming'
-            ? 'Transcript is not available yet'
-            : 'Transcript is not available'
-        }
-      >
-        {meetingState?.type === 'upcoming'
+      <NotReadyCard title={upcoming ? 'Transcript is not available yet' : 'Transcript is not available'}>
+        {upcoming
           ? 'The transcript will be created after the meeting has taken place.'
           : 'There is no transcript available for this meeting.'}
       </NotReadyCard>
@@ -40,30 +22,9 @@ export default function TranscriptTab({
     'The transcript will appear here once transcript content has been added to the meeting data.'
 
   return (
-    <SectionCard
-      icon={
-        <DescriptionOutlinedIcon />
-      }
-      title="Transcript"
-    >
-      <Box
-        sx={{
-          bgcolor: '#f8fafc',
-          border: '1px solid #e5eaf0',
-          borderRadius: '12px',
-          p: 2,
-        }}
-      >
-        <Typography
-          sx={{
-            fontSize: '0.8125rem',
-            lineHeight: 1.8,
-            color: '#42546b',
-            whiteSpace: 'pre-line',
-          }}
-        >
-          {transcript}
-        </Typography>
+    <SectionCard title="Transcript">
+      <Box sx={{ p: 2, bgcolor: '#F7F9FE', border: `1px solid ${D.line}`, borderRadius: '6px' }}>
+        <Typography sx={{ fontSize: '.875rem', lineHeight: 1.8, color: D.text, whiteSpace: 'pre-line' }}>{transcript}</Typography>
       </Box>
     </SectionCard>
   )

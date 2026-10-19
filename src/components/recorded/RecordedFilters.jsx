@@ -1,3 +1,4 @@
+
 import { useState } from 'react'
 
 import Box from '@mui/material/Box'
@@ -20,16 +21,34 @@ export default function RecordedFilters({
   const [anchor, setAnchor] = useState(null)
 
   return (
-    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+    <Box
+      sx={{
+        width: '100%',
+        minWidth: 0,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'flex-end',
+        gap: 1,
+        flexWrap: 'wrap',
+      }}
+    >
       {/* Date filter */}
       <Box
         role="group"
         aria-label="Filter by date"
         data-tour="recorded-filters"
-        sx={{ display: 'flex', border: `1px solid ${D.line}`, borderRadius: '6px', overflow: 'hidden', bgcolor: '#fff' }}
+        sx={{
+          display: 'flex',
+          maxWidth: '100%',
+          border: `1px solid ${D.line}`,
+          borderRadius: '6px',
+          overflow: 'hidden',
+          bgcolor: '#fff',
+        }}
       >
         {dateFilters.map((item) => {
           const active = dateFilter === item
+
           return (
             <Button
               key={item}
@@ -37,7 +56,8 @@ export default function RecordedFilters({
               onClick={() => onDateFilterChange(item)}
               sx={{
                 minHeight: 36,
-                px: 2,
+                minWidth: 0,
+                px: { xs: 1.25, sm: 2 },
                 borderRadius: 0,
                 fontSize: '.8125rem',
                 fontWeight: active ? 600 : 500,
@@ -45,8 +65,13 @@ export default function RecordedFilters({
                 whiteSpace: 'nowrap',
                 color: active ? '#fff' : D.navy,
                 bgcolor: active ? D.navy : 'transparent',
-                '&:hover': { bgcolor: active ? D.navy : '#F5F8FD' },
-                '&:focus-visible': { outline: `2px solid ${D.navy}`, outlineOffset: -4 },
+                '&:hover': {
+                  bgcolor: active ? D.navy : '#F5F8FD',
+                },
+                '&:focus-visible': {
+                  outline: `2px solid ${D.navy}`,
+                  outlineOffset: -4,
+                },
               }}
             >
               {item}
@@ -64,6 +89,8 @@ export default function RecordedFilters({
         onClick={(event) => setAnchor(event.currentTarget)}
         sx={{
           minHeight: 38,
+          minWidth: 'fit-content',
+          flexShrink: 0,
           px: 1.5,
           border: `1px solid ${D.line}`,
           borderRadius: '6px',
@@ -72,14 +99,25 @@ export default function RecordedFilters({
           fontSize: '.8125rem',
           fontWeight: 500,
           textTransform: 'none',
-          '&:hover': { bgcolor: '#F5F8FD', borderColor: D.navy },
-          '&:focus-visible': { outline: `2px solid ${D.navy}`, outlineOffset: 2 },
+          whiteSpace: 'nowrap',
+          '&:hover': {
+            bgcolor: '#F5F8FD',
+            borderColor: D.navy,
+          },
+          '&:focus-visible': {
+            outline: `2px solid ${D.navy}`,
+            outlineOffset: 2,
+          },
         }}
       >
         Sort: {sortBy}
       </Button>
 
-      <Menu anchorEl={anchor} open={Boolean(anchor)} onClose={() => setAnchor(null)}>
+      <Menu
+        anchorEl={anchor}
+        open={Boolean(anchor)}
+        onClose={() => setAnchor(null)}
+      >
         {sortOptions.map((item) => (
           <MenuItem
             key={item}
