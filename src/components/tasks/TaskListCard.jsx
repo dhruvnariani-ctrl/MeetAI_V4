@@ -24,8 +24,10 @@ export default function TaskListCard({
 }) {
   const pager = usePagination(tasks, TASKS_PER_PAGE, pageResetKey)
 
-  // The first not-done task carries the "mark as done" tour anchor.
-  const tourTaskId = pager.pageItems.find((task) => normalizeTaskStatus(task.status) !== 'Done')?.id
+  // One row carries every tour anchor (task card, details, status and "mark as done"), so the
+  // tour expands the same row it then points at: the first task that is not done yet.
+  const tourTaskId =
+    pager.pageItems.find((task) => normalizeTaskStatus(task.status) !== 'Done')?.id ?? pager.pageItems[0]?.id
 
   return (
     <Box component="section" ref={containerRef} aria-label="My action items" sx={{ minWidth: 0, scrollMarginTop: 18 }}>
@@ -63,11 +65,11 @@ export default function TaskListCard({
       ) : (
         <>
           <Box component="ul" sx={{ m: 0, p: 0, listStyle: 'none' }}>
-            {pager.pageItems.map((task, index) => (
+            {pager.pageItems.map((task) => (
               <TaskRow
                 key={task.id}
                 task={task}
-                first={index === 0}
+                first={task.id === tourTaskId}
                 expanded={expandedTaskId === task.id}
                 onToggle={onToggle}
                 onMarkDone={onMarkDone}

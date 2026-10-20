@@ -1,4 +1,3 @@
-
 import { forwardRef, useId } from 'react'
 
 import Box from '@mui/material/Box'
@@ -41,56 +40,60 @@ const TourCard = forwardRef(function TourCard(
         aria-modal="false"
         aria-labelledby={titleId}
         elevation={0}
-        
-sx={{
-  position: 'fixed',
-  zIndex: 1502,
-  boxSizing: 'border-box',
+        sx={{
+          position: 'fixed',
+          zIndex: 1502,
+          boxSizing: 'border-box',
 
-  width: {
-    xs: 'calc(100vw - 24px)',
-    sm: 360,
-  },
-  maxWidth: 360,
+          width: {
+            xs: 'calc(100vw - 24px)',
+            sm: 360,
+          },
+          maxWidth: 360,
 
-  // Desktop positioning is calculated from the highlighted target.
-  // Mobile positioning is set by phonePlacement.
-  top: {
-    xs:
-      phonePlacement === 'top'
-        ? 'max(12px, env(safe-area-inset-top))'
-        : 'auto',
-    sm: position?.top ?? 12,
-  },
+          // Phones: never taller than 40% of the screen (TourRunner reserves that much room);
+          // longer text scrolls inside the card.
+          maxHeight: { xs: '40dvh', sm: 'none' },
 
-  left: {
-    xs: 12,
-    sm: position?.left ?? 12,
-  },
+          // Larger screens: the position is calculated from the highlighted target.
+          // Phones: pinned to the top or bottom edge by phonePlacement.
+          top: {
+            xs:
+              phonePlacement === 'top'
+                ? 'max(12px, env(safe-area-inset-top))'
+                : 'auto',
+            sm: position?.top ?? 12,
+          },
 
-  bottom: {
-    xs:
-      phonePlacement === 'bottom'
-        ? 'max(12px, env(safe-area-inset-bottom))'
-        : 'auto',
-    sm: 'auto',
-  },
+          left: {
+            xs: 12,
+            sm: position?.left ?? 12,
+          },
 
-  borderRadius: '6px',
-  overflow: 'hidden',
-  outline: 'none',
-  boxShadow: '0 12px 36px rgba(20, 39, 94, .3)',
-  bgcolor: '#FFFFFF',
+          bottom: {
+            xs:
+              phonePlacement === 'bottom'
+                ? 'max(12px, env(safe-area-inset-bottom))'
+                : 'auto',
+            sm: 'auto',
+          },
 
-  transition: 'top 180ms ease, left 180ms ease',
+          borderRadius: '6px',
+          overflowX: 'hidden',
+          overflowY: { xs: 'auto', sm: 'hidden' },
+          overscrollBehavior: 'contain',
+          outline: 'none',
+          boxShadow: '0 12px 36px rgba(20, 39, 94, .3)',
+          bgcolor: '#FFFFFF',
 
-  '@media (max-width: 599.95px)': {
-    '& .tour-card-hint': {
-      display: 'none',
-    },
-  },
-}}
+          transition: 'top 180ms ease, left 180ms ease',
 
+          '@media (max-width: 599.95px)': {
+            '& .tour-card-hint': {
+              display: 'none',
+            },
+          },
+        }}
       >
         {/* Progress */}
         <Box
