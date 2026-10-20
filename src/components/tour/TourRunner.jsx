@@ -6,21 +6,23 @@ import TourCard from './TourCard'
 import TourOverlay from './TourOverlay'
 
 import { readTour, saveTour, stopAppTour } from './TourStorage'
-import { clamp, findTarget, positionCard, rectOf } from './TourUtils'
+import { clamp, findTarget, rectOf } from './TourUtils'
 
 const POLL_MS = 100
 const POLL_TRIES = 60
+
 const CARD_WIDTH = 360
 const CARD_HEIGHT = 330
 
-const DRAWER_SCREEN = '(max-width: 1199.95px)' // navigation lives in a drawer
-const PHONE = '(max-width: 599.95px)' // the card is pinned to the top or bottom edge
-const PHONE_CARD_SHARE = 0.4 // the phone card is never taller than this share of the screen
+const DRAWER_SCREEN = '(max-width: 1199.95px)'
+const PHONE = '(max-width: 599.95px)'
+
+const PHONE_CARD_SHARE = 0.4
 const CARD_GAP = 16
 const VIEWPORT_PADDING = 12
-const HIGHLIGHT_PAD = 12 // how far the highlight ring extends beyond its target
-const TOP_ZONE_SHARE = 0.25 // a target starting in this top share of the screen gets the card below it
-const RECLICK_TICKS = 5 // a click step is retried after this many polls if nothing changed
+const HIGHLIGHT_PAD = 12
+const TOP_ZONE_SHARE = 0.25
+const RECLICK_TICKS = 5
 
 const isDrawerScreen = () => window.matchMedia(DRAWER_SCREEN).matches
 const isPhone = () => window.matchMedia(PHONE).matches
@@ -42,14 +44,15 @@ function isVisible(element) {
 }
 
 function isNavigationSelector(selector) {
-  return typeof selector === 'string' && selector.includes('sidebar-navigation')
+  return (
+    typeof selector === 'string' &&
+    selector.includes('sidebar-navigation')
+  )
 }
 
 /*
- * Finds the correct target.
- *
- * On smaller screens, desktop navigation is never selected accidentally.
- * Navigation inside the MUI drawer is used only while the drawer is open.
+ * Find the visible target for the current step.
+ * On smaller screens, navigation targets must come from the open drawer.
  */
 function findStepTarget(selector) {
   if (!selector) return null
@@ -65,7 +68,9 @@ function findStepTarget(selector) {
   if (isNavigationSelector(selector)) {
     if (isDrawerScreen()) {
       const drawerOpen = Boolean(
-        document.querySelector('button[aria-label="Close navigation menu"][aria-expanded="true"]'),
+        document.querySelector(
+          'button[aria-label="Close navigation menu"][aria-expanded="true"]',
+        ),
       )
 
       if (!drawerOpen) return null
@@ -78,7 +83,10 @@ function findStepTarget(selector) {
       )
     }
 
-    const desktopTarget = matches.find((element) => !element.closest('.MuiDrawer-paper') && isVisible(element))
+    const desktopTarget = matches.find(
+      (element) =>
+        !element.closest('.MuiDrawer-paper') && isVisible(element),
+    )
 
     if (desktopTarget) return desktopTarget
   }
@@ -86,19 +94,23 @@ function findStepTarget(selector) {
   return matches.find(isVisible) ?? null
 }
 
-/* Opens the mobile navigation drawer when a tour step targets navigation. */
+/* Open the mobile navigation drawer for navigation tour steps. */
 function ensureNavigationDrawerOpen(selector, index, drawerRequestedFor) {
   if (!isNavigationSelector(selector)) return true
   if (!isDrawerScreen()) return true
 
-  const closeButton = document.querySelector('button[aria-label="Close navigation menu"][aria-expanded="true"]')
+  const closeButton = document.querySelector(
+    'button[aria-label="Close navigation menu"][aria-expanded="true"]',
+  )
 
   if (closeButton && isVisible(closeButton)) {
     return Boolean(findStepTarget(selector))
   }
 
   const openButton = Array.from(
-    document.querySelectorAll('button[aria-label="Open navigation menu"][aria-expanded="false"]'),
+    document.querySelectorAll(
+      'button[aria-label="Open navigation menu"][aria-expanded="false"]',
+    ),
   ).find(isVisible)
 
   if (openButton && drawerRequestedFor.current !== index) {
@@ -110,13 +122,15 @@ function ensureNavigationDrawerOpen(selector, index, drawerRequestedFor) {
 }
 
 /*
- * Closes the navigation drawer if it is open.
- * Returns true when it was open, so the caller can wait for it to finish closing.
+ * Close an open mobile navigation drawer.
+ * Returns true if the drawer was open and a close was requested.
  */
 function closeNavigationDrawer() {
   if (!isDrawerScreen()) return false
 
-  const closeButton = document.querySelector('button[aria-label="Close navigation menu"][aria-expanded="true"]')
+  const closeButton = document.querySelector(
+    'button[aria-label="Close navigation menu"][aria-expanded="true"]',
+  )
 
   if (closeButton && isVisible(closeButton)) {
     closeButton.click()
@@ -132,7 +146,10 @@ function getScrollParent(element) {
   while (node) {
     const { overflowY } = window.getComputedStyle(node)
 
-    if ((overflowY === 'auto' || overflowY === 'scroll') && node.scrollHeight > node.clientHeight) {
+    if (
+      (overflowY === 'auto' || overflowY === 'scroll') &&
+      node.scrollHeight > node.clientHeight
+    ) {
       return node
     }
 
@@ -142,14 +159,13 @@ function getScrollParent(element) {
   return document.scrollingElement
 }
 
-/* ---------- Keeping the card and the highlighted area apart ---------- */
+/* ---------- Card and target positioning ---------- */
 
-// Space a phone card needs above or below the target.
 const phoneRoom = () =>
-  Math.min(CARD_HEIGHT, window.innerHeight * PHONE_CARD_SHARE) + CARD_GAP + VIEWPORT_PADDING
+  Math.min(CARD_HEIGHT, window.innerHeight * PHONE_CARD_SHARE) +
+  CARD_GAP +
+  VIEWPORT_PADDING
 
-// Phones: bottom if the target ends above it, top if the target starts below it.
-// When neither fits (a very tall target) the card goes to the top and the target is scrolled below it.
 function choosePhonePlacement(rect) {
   const room = phoneRoom()
 
@@ -159,90 +175,250 @@ function choosePhonePlacement(rect) {
   return 'top'
 }
 
-function overlapsTarget(position, width, rect) {
-  return !(
-    position.left + width <= rect.left - CARD_GAP ||
-    position.left >= rect.right + CARD_GAP ||
-    position.top + CARD_HEIGHT <= rect.top - CARD_GAP ||
-    position.top >= rect.bottom + CARD_GAP
+function cardWidth() {
+  return Math.max(
+    1,
+    Math.min(CARD_WIDTH, window.innerWidth - VIEWPORT_PADDING * 2),
   )
 }
 
-const cardWidth = () => Math.min(CARD_WIDTH, window.innerWidth - VIEWPORT_PADDING * 2)
+function getCardHeight(measuredHeight) {
+  const maxHeight = Math.max(
+    120,
+    window.innerHeight - VIEWPORT_PADDING * 2,
+  )
 
-/*
- * Larger screens: a target near the top of the screen (the menu, the page heading)
- * gets the card directly below the highlight, clear of its ring.
- * Anything else, or no room below, uses the usual beside-the-target position.
- */
-function desktopPosition(rect) {
-  const width = cardWidth()
+  return clamp(
+    measuredHeight || CARD_HEIGHT,
+    120,
+    maxHeight,
+  )
+}
 
-  if (rect.top < window.innerHeight * TOP_ZONE_SHARE) {
-    const below = {
-      left: clamp(rect.left, VIEWPORT_PADDING, window.innerWidth - width - VIEWPORT_PADDING),
-      top: rect.bottom + HIGHLIGHT_PAD + CARD_GAP,
-    }
+function overlapsTarget(position, width, height, rect) {
+  const left = position.left
+  const top = position.top
+  const right = left + width
+  const bottom = top + height
 
-    if (below.top + CARD_HEIGHT <= window.innerHeight - VIEWPORT_PADDING) return below
+  return !(
+    right <= rect.left - CARD_GAP ||
+    left >= rect.right + CARD_GAP ||
+    bottom <= rect.top - CARD_GAP ||
+    top >= rect.bottom + CARD_GAP
+  )
+}
+
+function fitsViewport(position, width, height) {
+  return (
+    position.left >= VIEWPORT_PADDING &&
+    position.top >= VIEWPORT_PADDING &&
+    position.left + width <= window.innerWidth - VIEWPORT_PADDING &&
+    position.top + height <= window.innerHeight - VIEWPORT_PADDING
+  )
+}
+
+function makePosition(left, top, width, height) {
+  return {
+    left: clamp(
+      left,
+      VIEWPORT_PADDING,
+      Math.max(
+        VIEWPORT_PADDING,
+        window.innerWidth - width - VIEWPORT_PADDING,
+      ),
+    ),
+    top: clamp(
+      top,
+      VIEWPORT_PADDING,
+      Math.max(
+        VIEWPORT_PADDING,
+        window.innerHeight - height - VIEWPORT_PADDING,
+      ),
+    ),
   }
-
-  return positionCard(rect, width, CARD_HEIGHT)
 }
 
 /*
- * Where the card goes for a target.
- * Phones: { placement: 'top' | 'bottom' }.
- * Larger screens: { position } beside the target, or at the top when no side has room.
+ * Try positions around the target using the real card height.
+ * The first choice that fits the viewport and does not overlap the
+ * highlighted element is used.
  */
-function getCardLayout(rect) {
-  if (isPhone()) {
-    return { placement: choosePhonePlacement(rect), position: null }
+function desktopPosition(rect, measuredHeight) {
+  const width = cardWidth()
+  const height = getCardHeight(measuredHeight)
+
+  const targetCenterX = (rect.left + rect.right) / 2
+  const targetCenterY = (rect.top + rect.bottom) / 2
+
+  const candidates = []
+
+  // A target near the top of the screen is usually best served by a card below it.
+  if (rect.top < window.innerHeight * TOP_ZONE_SHARE) {
+    candidates.push({
+      left: rect.left,
+      top: rect.bottom + HIGHLIGHT_PAD + CARD_GAP,
+    })
   }
 
-  const width = cardWidth()
-  const position = desktopPosition(rect)
+  // Right and left are preferable when the target has enough horizontal room.
+  candidates.push(
+    {
+      left: rect.right + HIGHLIGHT_PAD + CARD_GAP,
+      top: targetCenterY - height / 2,
+    },
+    {
+      left: rect.left - width - HIGHLIGHT_PAD - CARD_GAP,
+      top: targetCenterY - height / 2,
+    },
+    {
+      left: targetCenterX - width / 2,
+      top: rect.bottom + HIGHLIGHT_PAD + CARD_GAP,
+    },
+    {
+      left: targetCenterX - width / 2,
+      top: rect.top - height - HIGHLIGHT_PAD - CARD_GAP,
+    },
+  )
 
-  if (!overlapsTarget(position, width, rect)) {
-    return { placement: 'bottom', position }
+  for (const candidate of candidates) {
+    const position = makePosition(
+      candidate.left,
+      candidate.top,
+      width,
+      height,
+    )
+
+    if (
+      fitsViewport(position, width, height) &&
+      !overlapsTarget(position, width, height, rect)
+    ) {
+      return position
+    }
+  }
+
+  /*
+   * If the target occupies most of the screen, there may be no valid
+   * position around it. Use a safe corner rather than placing the card
+   * on top of the highlighted target.
+   */
+  const safeCandidates = [
+    { left: VIEWPORT_PADDING, top: VIEWPORT_PADDING },
+    {
+      left: window.innerWidth - width - VIEWPORT_PADDING,
+      top: VIEWPORT_PADDING,
+    },
+    {
+      left: VIEWPORT_PADDING,
+      top: window.innerHeight - height - VIEWPORT_PADDING,
+    },
+    {
+      left: window.innerWidth - width - VIEWPORT_PADDING,
+      top: window.innerHeight - height - VIEWPORT_PADDING,
+    },
+  ]
+
+  const safePosition = safeCandidates
+    .map((candidate) =>
+      makePosition(candidate.left, candidate.top, width, height),
+    )
+    .find(
+      (position) =>
+        !overlapsTarget(position, width, height, rect),
+    )
+
+  return (
+    safePosition ??
+    makePosition(
+      window.innerWidth - width - VIEWPORT_PADDING,
+      VIEWPORT_PADDING,
+      width,
+      height,
+    )
+  )
+}
+
+function getCardLayout(rect, measuredHeight) {
+  if (isPhone()) {
+    return {
+      placement: choosePhonePlacement(rect),
+      position: null,
+    }
   }
 
   return {
     placement: 'bottom',
-    position: {
-      left: clamp(rect.left, VIEWPORT_PADDING, window.innerWidth - width - VIEWPORT_PADDING),
-      top: VIEWPORT_PADDING,
-    },
+    position: desktopPosition(rect, measuredHeight),
   }
 }
 
 /*
- * Runs once when a step's target is found.
- * If the target is so tall that the card has no free side, scroll so the
- * target starts right below the card, which then sits at the top.
+ * If the target and card cannot fit separately in the current viewport,
+ * scroll the target into a position that leaves room for the card.
  */
-function makeRoomForCard(target) {
+function makeRoomForCard(target, measuredHeight) {
   const rect = target.getBoundingClientRect()
-
-  let needsRoom
-  let desiredTop
 
   if (isPhone()) {
     const room = phoneRoom()
-    needsRoom = !(rect.bottom <= window.innerHeight - room || rect.top >= room)
-    desiredTop = room
-  } else {
-    needsRoom = overlapsTarget(desktopPosition(rect), cardWidth(), rect)
-    desiredTop = VIEWPORT_PADDING + CARD_HEIGHT + CARD_GAP
+    const needsRoom = !(
+      rect.bottom <= window.innerHeight - room ||
+      rect.top >= room
+    )
+
+    if (!needsRoom) return
+
+    const delta = rect.top - room
+
+    if (Math.abs(delta) > 1) {
+      getScrollParent(target)?.scrollBy({
+        top: delta,
+        behavior: 'auto',
+      })
+    }
+
+    return
   }
 
-  if (!needsRoom) return
+  const height = getCardHeight(measuredHeight)
+  const position = desktopPosition(rect, height)
+  const width = cardWidth()
 
+  if (!overlapsTarget(position, width, height, rect)) return
+
+  const desiredTop = VIEWPORT_PADDING + height + CARD_GAP
   const delta = rect.top - desiredTop
 
   if (Math.abs(delta) > 1) {
-    getScrollParent(target)?.scrollBy({ top: delta, behavior: 'auto' })
+    getScrollParent(target)?.scrollBy({
+      top: delta,
+      behavior: 'auto',
+    })
   }
+}
+
+function boundsFromElement(element) {
+  if (!element) return null
+
+  const bounds = element.getBoundingClientRect()
+
+  return {
+    left: bounds.left,
+    top: bounds.top,
+    right: bounds.right,
+    bottom: bounds.bottom,
+  }
+}
+
+function sameBounds(previous, next) {
+  if (!previous || !next) return false
+
+  return (
+    Math.abs(previous.left - next.left) < 1 &&
+    Math.abs(previous.top - next.top) < 1 &&
+    Math.abs(previous.right - next.right) < 1 &&
+    Math.abs(previous.bottom - next.bottom) < 1
+  )
 }
 
 /*
@@ -257,26 +433,96 @@ export default function TourRunner() {
   const [tour, setTour] = useState(readTour)
   const [rect, setRect] = useState(null)
   const [cardRect, setCardRect] = useState(null)
+  const [cardHeight, setCardHeight] = useState(CARD_HEIGHT)
 
   const cardRef = useRef(null)
   const navigatedFor = useRef(-1)
   const drawerRequestedFor = useRef(-1)
+  const goRef = useRef(null)
 
   const index = tour?.index ?? 0
-  const step = tour?.phase === 'tour' ? tour.steps[index] : null
+  const step =
+    tour?.phase === 'tour' ? tour.steps[index] : null
 
-  const layout = rect ? getCardLayout(rect) : null
+  const layout = rect
+    ? getCardLayout(rect, cardHeight)
+    : null
 
-  // Respond to tour start/stop events.
+  /*
+   * Keep the actual card height measured. Some steps contain more text
+   * than others, so a fixed 330px estimate is not reliable on desktop.
+   */
+  useEffect(() => {
+    if (!tour || tour.phase !== 'tour' || !cardRef.current) {
+      return undefined
+    }
+
+    const element = cardRef.current
+    let frame = 0
+
+    const measure = () => {
+      window.cancelAnimationFrame(frame)
+
+      frame = window.requestAnimationFrame(() => {
+        if (!element.isConnected) return
+
+        const bounds = element.getBoundingClientRect()
+        const nextHeight = Math.ceil(bounds.height)
+
+        if (nextHeight > 0) {
+          setCardHeight((previous) =>
+            Math.abs(previous - nextHeight) < 1
+              ? previous
+              : nextHeight,
+          )
+
+          const nextRect = {
+            left: bounds.left,
+            top: bounds.top,
+            right: bounds.right,
+            bottom: bounds.bottom,
+          }
+
+          setCardRect((previous) =>
+            sameBounds(previous, nextRect) ? previous : nextRect,
+          )
+        }
+      })
+    }
+
+    measure()
+
+    const resizeObserver =
+      typeof ResizeObserver !== 'undefined'
+        ? new ResizeObserver(measure)
+        : null
+
+    resizeObserver?.observe(element)
+
+    window.addEventListener('resize', measure)
+    window.addEventListener('scroll', measure, true)
+
+    return () => {
+      window.cancelAnimationFrame(frame)
+      resizeObserver?.disconnect()
+      window.removeEventListener('resize', measure)
+      window.removeEventListener('scroll', measure, true)
+    }
+  }, [tour, index, rect, layout?.position?.left, layout?.position?.top, layout?.placement])
+
+  /*
+   * Respond to tour start/stop events.
+   */
   useEffect(() => {
     const onStart = () => {
       setRect(null)
       setCardRect(null)
+      setCardHeight(CARD_HEIGHT)
       setTour(readTour())
     }
 
     const onStop = () => {
-      closeNavigationDrawer() // never leave the menu open behind a finished tour
+      closeNavigationDrawer()
       setRect(null)
       setCardRect(null)
       setTour(null)
@@ -317,21 +563,19 @@ export default function TourRunner() {
 
       setRect(null)
       setCardRect(null)
+      setCardHeight(CARD_HEIGHT)
       setTour(updated)
     },
     [tour, stop],
   )
-
-  // Always use the latest goTo function from the polling interval.
-  const goRef = useRef(goTo)
 
   useEffect(() => {
     goRef.current = goTo
   }, [goTo])
 
   /*
-   * Locate each step's target.
-   * Allow navigation and page transitions to finish before highlighting.
+   * Locate the target for the current step and wait for navigation,
+   * drawer animation, or page rendering to finish.
    */
   useEffect(() => {
     if (!step) {
@@ -349,7 +593,10 @@ export default function TourRunner() {
     setRect(null)
     setCardRect(null)
 
-    if (pathname !== step.path && navigatedFor.current !== index) {
+    if (
+      pathname !== step.path &&
+      navigatedFor.current !== index
+    ) {
       navigatedFor.current = index
       navigate(step.path)
     }
@@ -357,17 +604,18 @@ export default function TourRunner() {
     const skipIfTimedOut = () => {
       if (tries >= POLL_TRIES) {
         window.clearInterval(timer)
-        goRef.current(index + 1)
+        goRef.current?.(index + 1)
       }
     }
 
-    // Only the rectangle follows scrolling and resizing; the card layout is worked out from it.
     const updateRect = () => {
       if (cancelled) return
 
       const target = findStepTarget(step.target)
 
-      if (target) setRect(rectOf(target))
+      if (target) {
+        setRect(rectOf(target))
+      }
     }
 
     timer = window.setInterval(() => {
@@ -375,31 +623,36 @@ export default function TourRunner() {
 
       tries += 1
 
-      // After the navigation step, close the drawer so it does not cover later steps.
-      if (!isNavigationSelector(step.target) && closeNavigationDrawer()) {
+      // Wait for the navigation drawer to close before non-navigation steps.
+      if (
+        !isNavigationSelector(step.target) &&
+        closeNavigationDrawer()
+      ) {
         skipIfTimedOut()
         return
       }
 
-      /*
-       * Some steps need a control clicked first, for example expanding a task.
-       * The control only matches while it is still collapsed, so a click is
-       * repeated every few polls until the step's target appears, and skipped
-       * entirely when the page is already in the right state.
-       */
+      // Click a control for steps that need an expanded or revealed target.
       if (step.click) {
         const clickTarget = findStepTarget(step.click)
 
-        if (clickTarget && tries - lastClickTry >= RECLICK_TICKS) {
+        if (
+          clickTarget &&
+          tries - lastClickTry >= RECLICK_TICKS
+        ) {
           lastClickTry = tries
           clickTarget.click()
           return
         }
       }
 
-      // Open mobile navigation before locating a navigation target.
+      // Open the drawer before searching for mobile navigation targets.
       if (isNavigationSelector(step.target)) {
-        const drawerReady = ensureNavigationDrawerOpen(step.target, index, drawerRequestedFor)
+        const drawerReady = ensureNavigationDrawerOpen(
+          step.target,
+          index,
+          drawerRequestedFor,
+        )
 
         if (!drawerReady) {
           skipIfTimedOut()
@@ -422,8 +675,7 @@ export default function TourRunner() {
         behavior: 'auto',
       })
 
-      // Very tall targets: scroll so they start below the card.
-      makeRoomForCard(target)
+      makeRoomForCard(target, cardHeight)
 
       window.requestAnimationFrame(() => {
         if (cancelled) return
@@ -444,65 +696,11 @@ export default function TourRunner() {
       window.clearInterval(timer)
       detach()
     }
-  }, [step, index, pathname, navigate])
+  }, [step, index, pathname, navigate, cardHeight])
 
   /*
-   * Keep the card's real bounds in sync with its rendered position.
-   * TourOverlay uses these bounds to avoid dimming the card area.
+   * Escape closes the tour.
    */
-  const placementKey = layout?.placement
-  useEffect(() => {
-    if (!rect || !cardRef.current) {
-      setCardRect(null)
-      return undefined
-    }
-
-    let frame
-
-    const updateCardRect = () => {
-      window.cancelAnimationFrame(frame)
-
-      frame = window.requestAnimationFrame(() => {
-        if (!cardRef.current) return
-
-        const bounds = cardRef.current.getBoundingClientRect()
-
-        setCardRect((previous) => {
-          const next = {
-            left: bounds.left,
-            top: bounds.top,
-            right: bounds.right,
-            bottom: bounds.bottom,
-          }
-
-          if (
-            previous &&
-            Math.abs(previous.left - next.left) < 1 &&
-            Math.abs(previous.top - next.top) < 1 &&
-            Math.abs(previous.right - next.right) < 1 &&
-            Math.abs(previous.bottom - next.bottom) < 1
-          ) {
-            return previous
-          }
-
-          return next
-        })
-      })
-    }
-
-    updateCardRect()
-
-    window.addEventListener('resize', updateCardRect)
-    window.addEventListener('scroll', updateCardRect, true)
-
-    return () => {
-      window.cancelAnimationFrame(frame)
-      window.removeEventListener('resize', updateCardRect)
-      window.removeEventListener('scroll', updateCardRect, true)
-    }
-  }, [rect, index, placementKey])
-
-  // Escape closes the tour.
   useEffect(() => {
     if (!tour) return undefined
 
@@ -517,7 +715,9 @@ export default function TourRunner() {
     }
   }, [tour, stop])
 
-  // Focus the card once its target is ready.
+  /*
+   * Focus the card once its target is ready.
+   */
   useEffect(() => {
     if (rect) {
       cardRef.current?.focus({ preventScroll: true })
@@ -527,14 +727,22 @@ export default function TourRunner() {
   if (!tour) return null
 
   if (tour.phase === 'intro') {
-    return <TourIntro onStart={() => goTo(0)} onSkip={stop} />
+    return (
+      <TourIntro
+        onStart={() => goTo(0)}
+        onSkip={stop}
+      />
+    )
   }
 
-  if (!step || !rect) return null
+  if (!step || !rect || !layout) return null
 
   return (
     <>
-      <TourOverlay targetRect={rect} cardRect={cardRect} />
+      <TourOverlay
+        targetRect={rect}
+        cardRect={cardRect}
+      />
 
       <TourCard
         ref={cardRef}
