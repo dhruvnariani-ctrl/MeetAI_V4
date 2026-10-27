@@ -35,7 +35,7 @@ export default function TaskSidePanels({
     <>
       {/* Today's focus */}
       <Box component="section" aria-label="Today's focus">
-        <Box sx={sectionHeadSx}>
+        <Box sx={{ ...sectionHeadSx, borderTop: 'none', mt: 0, pt: 0, alignItems: 'center' }}>
           <Typography component="h2" sx={titleSx}>
             Today&rsquo;s focus
           </Typography>

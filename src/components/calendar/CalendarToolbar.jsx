@@ -70,7 +70,7 @@ export default function CalendarToolbar({
     })
 
   return (
-    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1.5, flexWrap: 'wrap' }}>
+    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1, flexWrap: 'wrap' }}>
       {/* Date navigation */}
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
         <IconButton aria-label={`Previous ${view}`} onClick={onPrevious} sx={{ ...controlSx, width: 38, p: 0 }}>
@@ -81,7 +81,6 @@ export default function CalendarToolbar({
           data-tour="calendar-date-menu"
           aria-haspopup="menu"
           aria-expanded={Boolean(dateAnchor)}
-          endIcon={<ExpandMoreRoundedIcon />}
           onClick={(event) => setDateAnchor(event.currentTarget)}
           sx={{ ...controlSx, minWidth: 150 }}
         >
@@ -91,13 +90,6 @@ export default function CalendarToolbar({
         <IconButton aria-label={`Next ${view}`} onClick={onNext} sx={{ ...controlSx, width: 38, p: 0 }}>
           <ChevronRightRoundedIcon />
         </IconButton>
-
-        <Menu anchorEl={dateAnchor} open={Boolean(dateAnchor)} onClose={() => setDateAnchor(null)}>
-          <MenuItem onClick={pick(onToday)}>Today</MenuItem>
-          <MenuItem onClick={pick(onYesterday)}>Yesterday</MenuItem>
-          <MenuItem onClick={pick(onTomorrow)}>Tomorrow</MenuItem>
-          {view !== 'day' && <MenuItem onClick={pick(onCurrentPeriod)}>This {view}</MenuItem>}
-        </Menu>
       </Box>
 
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>

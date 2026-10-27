@@ -2,17 +2,19 @@ import { useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 import Box from '@mui/material/Box'
-import Typography from '@mui/material/Typography'
 
 import usePageTitle from '../hooks/usePageTitle'
 import useCurrentUser from '../hooks/useCurrentUser'
 
-import { filterAndSortTasks, getTasksFromDashboard, normalizeTaskStatus } from '../data/tasks'
+import {
+  filterAndSortTasks,
+  getTasksFromDashboard,
+  normalizeTaskStatus,
+} from '../data/tasks'
 import { updateMeetingActionItemStatus } from '../data/meetings'
 
-import { D, serif } from '../components/dashboard/dashTheme'
+import { D } from '../components/dashboard/dashTheme'
 import useTaskStats from '../components/tasks/useTaskStats'
-import TaskToolbar from '../components/tasks/TaskToolbar'
 import TaskListCard from '../components/tasks/TaskListCard'
 import TaskSidePanels from '../components/tasks/TaskSidePanels'
 import ConfirmMarkDoneDialog from '../components/tasks/ConfirmMarkDoneDialog'
@@ -25,13 +27,10 @@ export default function MyTasks() {
   const listRef = useRef(null)
 
   const [tasks, setTasks] = useState(() => getTasksFromDashboard(currentUser))
-
   const [filter, setFilter] = useState('Open')
   const [sortBy, setSortBy] = useState('My Order')
   const [dueDate, setDueDate] = useState('default')
   const [expandedTaskId, setExpandedTaskId] = useState(null)
-
-  // The selected task stays unchanged until the user confirms.
   const [taskToConfirm, setTaskToConfirm] = useState(null)
 
   const filteredTasks = useMemo(
@@ -41,23 +40,28 @@ export default function MyTasks() {
 
   const { filterCounts, highPriority, dueSoon, todayFocus, progress } = useTaskStats(tasks)
 
-  const handleToggle = (taskId) => setExpandedTaskId((current) => (current === taskId ? null : taskId))
+  const handleToggle = (taskId) => {
+    setExpandedTaskId((current) => (current === taskId ? null : taskId))
+  }
 
-  // Step 1: ask for confirmation. Nothing is saved here.
   const handleMarkDone = (taskId) => {
     const task = tasks.find((item) => item.id === taskId)
+
     if (!task?.meetingId || normalizeTaskStatus(task.status) === 'Done') return
     setTaskToConfirm(task)
   }
 
-  // Step 2: save and update the page only after confirmation.
   const handleConfirmMarkDone = () => {
     if (!taskToConfirm?.meetingId) return
 
     updateMeetingActionItemStatus(taskToConfirm.meetingId, taskToConfirm.id, 'Done')
+
     setTasks((current) =>
-      current.map((item) => (item.id === taskToConfirm.id ? { ...item, status: 'Done', completed: true } : item)),
+      current.map((item) =>
+        item.id === taskToConfirm.id ? { ...item, status: 'Done', completed: true } : item,
+      ),
     )
+
     setTaskToConfirm(null)
   }
 
@@ -71,7 +75,9 @@ export default function MyTasks() {
     setSortBy(nextSortBy)
     setExpandedTaskId(null)
 
-    requestAnimationFrame(() => listRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
+    requestAnimationFrame(() => {
+      listRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    })
   }
 
   const handleClearFilters = () => {
@@ -82,77 +88,39 @@ export default function MyTasks() {
   return (
     <>
       <Box sx={{ width: '100%', minWidth: 0, color: D.text }}>
-        {/* Title band, same treatment as the other pages */}
-        <Box
-          component="section"
-          aria-label="Tasks overview"
-          sx={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: 2,
-            flexWrap: 'wrap',
-            mx: { xs: -1.5, md: -2 },
-            mt: { xs: -1.5, md: -2 },
-            px: { xs: 1.5, md: 2 },
-            py: 2.5,
-            bgcolor: D.band,
-          }}
-        >
-          <Box sx={{ minWidth: 0, flex: '1 1 320px' }}>
-            <Typography sx={{ fontSize: '.6875rem', fontWeight: 500, letterSpacing: '.06em', textTransform: 'uppercase', color: D.muted }}>
-              Action items from your meetings
-            </Typography>
-
-            <Typography
-              component="h1"
-              sx={{ mt: 0.5, fontFamily: serif, fontWeight: 400, fontSize: { xs: '1.9rem', md: '2.6rem' }, lineHeight: 1.1, color: D.navy }}
-            >
-              My Tasks
-            </Typography>
-
-            <Typography aria-live="polite" sx={{ mt: 0.75, fontSize: '.8125rem', color: D.text }}>
-              <Box component="strong" sx={{ fontWeight: 600, color: D.navy }}>
-                {filterCounts.Open} open task{filterCounts.Open === 1 ? '' : 's'}.
-              </Box>{' '}
-              {highPriority} high priority and {dueSoon} due this week.
-            </Typography>
-          </Box>
-
-          {/* Filters sit on the same line as the heading */}
-          <TaskToolbar
-            filter={filter}
-            onFilterChange={setFilter}
-            filterCounts={filterCounts}
-            dueDate={dueDate}
-            onDueDateChange={setDueDate}
-            sortBy={sortBy}
-            onSortByChange={setSortBy}
-          />
-        </Box>
-
         <Box
           sx={{
             display: 'grid',
-            gridTemplateColumns: { xs: 'minmax(0, 1fr)', lg: 'minmax(0, 1.9fr) minmax(300px, 1fr)' },
-            columnGap: 3.5,
-            rowGap: 3,
+            gridTemplateColumns: {
+              xs: 'minmax(0, 1fr)',
+              lg: 'minmax(0, 1.8fr) minmax(280px, 1fr)',
+            },
+            columnGap: { xs: 0, lg: 2.5 },
+            rowGap: { xs: 2, lg: 2.5 },
             alignItems: 'start',
-            pt: 3,
+            pt: 0,
           }}
         >
-          <TaskListCard
-            containerRef={listRef}
-            tasks={filteredTasks}
-            expandedTaskId={expandedTaskId}
-            onToggle={handleToggle}
-            onMarkDone={handleMarkDone}
-            onOpen={handleOpenMeeting}
-            onClearFilters={handleClearFilters}
-            pageResetKey={[filter, dueDate, sortBy].join('|')}
-          />
+          <Box ref={listRef} sx={{ minWidth: 0, scrollMarginTop: 16 }}>
+            <TaskListCard
+              tasks={filteredTasks}
+              expandedTaskId={expandedTaskId}
+              onToggle={handleToggle}
+              onMarkDone={handleMarkDone}
+              onOpen={handleOpenMeeting}
+              onClearFilters={handleClearFilters}
+              pageResetKey={[filter, dueDate, sortBy].join('|')}
+              filter={filter}
+              onFilterChange={setFilter}
+              filterCounts={filterCounts}
+              dueDate={dueDate}
+              onDueDateChange={setDueDate}
+              sortBy={sortBy}
+              onSortByChange={setSortBy}
+            />
+          </Box>
 
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, minWidth: 0 }}>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
             <TaskSidePanels
               focusTasks={todayFocus}
               filterCounts={filterCounts}

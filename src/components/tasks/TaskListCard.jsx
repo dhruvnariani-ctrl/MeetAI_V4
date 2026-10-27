@@ -9,6 +9,7 @@ import usePagination from '../../hooks/usePagination'
 import { normalizeTaskStatus } from '../../data/tasks'
 import { D, sectionHeadSx, titleSx } from '../dashboard/dashTheme'
 import TaskRow from './TaskRow'
+import TaskToolbar from './TaskToolbar'
 
 const TASKS_PER_PAGE = 5
 
@@ -21,49 +22,76 @@ export default function TaskListCard({
   onOpen,
   onClearFilters,
   pageResetKey,
+  filter,
+  onFilterChange,
+  filterCounts,
+  dueDate,
+  onDueDateChange,
+  sortBy,
+  onSortByChange,
 }) {
   const pager = usePagination(tasks, TASKS_PER_PAGE, pageResetKey)
 
-  // One row carries every tour anchor (task card, details, status and "mark as done"), so the
-  // tour expands the same row it then points at: the first task that is not done yet.
+  // Keep the tour anchors on one actionable, open task when possible.
   const tourTaskId =
-    pager.pageItems.find((task) => normalizeTaskStatus(task.status) !== 'Done')?.id ?? pager.pageItems[0]?.id
+    pager.pageItems.find((task) => normalizeTaskStatus(task.status) !== 'Done')?.id ??
+    pager.pageItems[0]?.id
 
   return (
-    <Box component="section" ref={containerRef} aria-label="My action items" sx={{ minWidth: 0, scrollMarginTop: 18 }}>
-      <Box sx={{ ...sectionHeadSx, mb: 2 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <Typography component="h2" sx={titleSx}>
-            My action items
-          </Typography>
-          <Box
-            component="span"
-            sx={{
-              minWidth: 20,
-              height: 20,
-              px: 0.75,
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              borderRadius: '10px',
-              bgcolor: '#D9E3F7',
-              color: D.navy,
-              fontSize: '.6875rem',
-              fontWeight: 600,
-            }}
-          >
-            {tasks.length}
+    <Box
+      component="section"
+      ref={containerRef}
+      aria-label="My action items"
+      sx={{
+        minWidth: 0,
+        overflow: 'hidden',
+      }}
+    >
+      <Box
+        sx={{
+          display: 'grid',
+          gridTemplateColumns: { xs: 'minmax(0, 1fr)', lg: 'minmax(160px, .7fr) minmax(0, 1.8fr)' },
+          alignItems: 'start',
+          gap: { xs: 1.5, lg: 2.5 },
+          p: { xs: 1.5, sm: 2, lg: 0 },
+        }}
+      >
+        <Box sx={{ minWidth: 0,p:0 }}>
+          <Box sx={{ ...sectionHeadSx, mb: 0.5, alignItems: 'center',borderTop:'none', mt:0, pt:0 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 0 }}>
+              <Typography component="h2" sx={titleSx}>
+                My action items
+              </Typography>
+            </Box>
           </Box>
+          <Typography sx={{ fontSize: '.6875rem', lineHeight: 1.45, color: D.muted }}>
+            Select a task to see its details.
+          </Typography>
         </Box>
-        <Typography sx={{ fontSize: '.6875rem', color: D.muted }}>Select a task to see details and update its status.</Typography>
+
+        <TaskToolbar
+          filter={filter}
+          onFilterChange={onFilterChange}
+          filterCounts={filterCounts}
+          dueDate={dueDate}
+          onDueDateChange={onDueDateChange}
+          sortBy={sortBy}
+          onSortByChange={onSortByChange}
+        />
       </Box>
 
       {tasks.length === 0 ? (
-        <EmptyPanel title="No tasks found" minHeight={140} action={<Button onClick={onClearFilters}>Clear filters</Button>}>
-          Try another status or date range.
-        </EmptyPanel>
+        <Box sx={{ p: 2 }}>
+          <EmptyPanel
+            title="No tasks found"
+            minHeight={140}
+            action={<Button onClick={onClearFilters}>Clear filters</Button>}
+          >
+            Try another status or date range.
+          </EmptyPanel>
+        </Box>
       ) : (
-        <>
+        <Box sx={{ px: { xs: 1.25, sm: 2 }, pt: 1.5, pb: 0.5 }}>
           <Box component="ul" sx={{ m: 0, p: 0, listStyle: 'none' }}>
             {pager.pageItems.map((task) => (
               <TaskRow
@@ -91,7 +119,7 @@ export default function TaskListCard({
               },
             }}
           />
-        </>
+        </Box>
       )}
     </Box>
   )

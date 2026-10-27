@@ -36,7 +36,7 @@ export default function useTaskStats(tasks) {
       filterAndSortTasks(candidates, {}, 'Due date'),
       {},
       'Priority',
-    ).slice(0, 3)
+    ).slice(0, 4)
   }, [tasks])
 
   const progress = tasks.length

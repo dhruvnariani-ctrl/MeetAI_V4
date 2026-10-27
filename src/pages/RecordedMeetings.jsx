@@ -16,7 +16,6 @@ import RecordedFilters from '../components/recorded/RecordedFilters'
 import {
   D,
   sectionHeadSx,
-  serif,
   time24,
   titleSx,
 } from '../components/dashboard/dashTheme'
@@ -34,7 +33,7 @@ import {
 import { DATE_FILTERS } from '../utils/dateFilters'
 import { filterUserMeetings } from '../utils/meetingAccess'
 
-const PAGE_SIZE = 6
+const PAGE_SIZE = 8
 
 const ROW = {
   display: 'grid',
@@ -156,130 +155,20 @@ export default function RecordedMeetings() {
         color: D.text,
       }}
     >
-      {/* Page heading and filters */}
-      <Box
-        component="section"
-        aria-label="Recorded meetings overview"
-        sx={{
-          mx: { xs: -1.5, md: -2 },
-          mt: { xs: -1.5, md: -2 },
-          px: { xs: 1.5, md: 2 },
-          py: 2.5,
-          bgcolor: D.band,
-        }}
-      >
-        <Box
-          sx={{
-            display: 'flex',
-            alignItems: { xs: 'flex-start', md: 'center' },
-            justifyContent: 'space-between',
-            gap: { xs: 2, md: 3 },
-            flexWrap: 'wrap',
-          }}
-        >
-          {/* Heading and description */}
-          <Box
-            sx={{
-              flex: '1 1 300px',
-              minWidth: 0,
-            }}
-          >
-            <Typography
-              sx={{
-                fontSize: '.6875rem',
-                fontWeight: 500,
-                letterSpacing: '.06em',
-                textTransform: 'uppercase',
-                color: D.muted,
-              }}
-            >
-              Archive
-            </Typography>
-
-            <Typography
-              component="h1"
-              sx={{
-                mt: 0.5,
-                fontFamily: serif,
-                fontWeight: 400,
-                fontSize: {
-                  xs: '1.9rem',
-                  md: '2.6rem',
-                },
-                lineHeight: 1.1,
-                color: D.navy,
-              }}
-            >
-              Recorded Meetings
-            </Typography>
-
-            <Typography
-              aria-live="polite"
-              sx={{
-                mt: 0.75,
-                fontSize: '.8125rem',
-                color: D.text,
-              }}
-            >
-              <Box
-                component="strong"
-                sx={{
-                  fontWeight: 600,
-                  color: D.navy,
-                }}
-              >
-                {recorded.length} recording
-                {recorded.length === 1 ? '' : 's'}.
-              </Box>{' '}
-              Find recordings, transcripts and notes from your meetings.
-            </Typography>
-          </Box>
-
-          {/* Date and sort filters on the same row */}
-          <Box
-            sx={{
-              flex: '0 1 auto',
-              minWidth: 0,
-              width: {
-                xs: '100%',
-                md: 'auto',
-              },
-              display: 'flex',
-              justifyContent: {
-                xs: 'flex-start',
-                md: 'flex-end',
-              },
-              alignItems: 'center',
-              '& > *': {
-                minWidth: 0,
-                maxWidth: '100%',
-              },
-            }}
-          >
-            <RecordedFilters
-              dateFilters={DATE_FILTERS}
-              dateFilter={dateFilter}
-              onDateFilterChange={setDateFilter}
-              sortOptions={RECORDED_SORT_OPTIONS}
-              sortBy={sortBy}
-              onSortChange={setSortBy}
-            />
-          </Box>
-        </Box>
-      </Box>
-
-      {/* Meeting archive and selected meeting */}
+      {/* Compact archive and selected meeting view */}
       <Box
         sx={{
           display: 'grid',
           gridTemplateColumns: {
             xs: 'minmax(0, 1fr)',
-            lg: 'minmax(0, 1.9fr) minmax(300px, 1fr)',
+            lg: 'minmax(0, 1.8fr) minmax(280px, 1fr)',
           },
-          columnGap: 3.5,
-          rowGap: 3,
+          columnGap: 2,
+          rowGap: 1.5,
           alignItems: 'start',
-          pt: 3,
+          pt: 0,
+          height: { lg: 'calc(100vh - 150px)' },
+          minHeight: 0,
         }}
       >
         {/* Archive list */}
@@ -290,28 +179,56 @@ export default function RecordedMeetings() {
           sx={{ minWidth: 0 }}
         >
           <Box
+  sx={{
+    display: 'flex',
+    alignItems: { xs: 'flex-start', lg: 'center' },
+    justifyContent: 'space-between',
+    flexWrap: { xs: 'wrap', lg: 'nowrap' },
+    gap: 1,
+    mb: 1.25,
+  }}
+>
+  <Typography
+    component="h2"
+    sx={{
+      ...titleSx,
+      flexShrink: 0,
+    }}
+  >
+    Meeting archive ({recorded.length})
+  </Typography>
+
+  <Box
+    sx={{
+      minWidth: 0,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: { xs: 'flex-start', lg: 'flex-end' },
+      flexWrap: { xs: 'wrap', lg: 'nowrap' },
+      gap: 1,
+      '& > *': {
+        flexShrink: 0,
+      },
+    }}
+  >
+    <RecordedFilters
+      dateFilters={DATE_FILTERS}
+      dateFilter={dateFilter}
+      onDateFilterChange={setDateFilter}
+      sortOptions={RECORDED_SORT_OPTIONS}
+      sortBy={sortBy}
+      onSortChange={setSortBy}
+    />
+  </Box>
+</Box>
+          <Box
             sx={{
-              ...sectionHeadSx,
-              mb: 2,
+              minWidth: 0,
+              overflowY: { lg: 'auto' },
+              maxHeight: { lg: 'calc(100vh - 250px)' },
+              pr: { lg: 0.5 },
             }}
           >
-            <Typography
-              component="h2"
-              sx={titleSx}
-            >
-              Meeting archive
-            </Typography>
-
-            <Typography
-              sx={{
-                fontSize: '.6875rem',
-                color: D.muted,
-              }}
-            >
-              Select a meeting to see its content.
-            </Typography>
-          </Box>
-
           {recorded.length === 0 ? (
             <EmptyPanel
               title="No recorded meetings"
@@ -352,7 +269,7 @@ export default function RecordedMeetings() {
                       }}
                     >
                       {/* Meeting date and time */}
-                      <Box sx={{ pt: 1.5 }}>
+                      <Box sx={{ pt: 0.75 }}>
                         <Typography
                           sx={{
                             fontSize: '.75rem',
@@ -384,8 +301,8 @@ export default function RecordedMeetings() {
                           gap: 1.5,
                           width: '100%',
                           minWidth: 0,
-                          px: 2,
-                          py: 1.5,
+                          px: 1.25,
+                          py: 0.85,
                           textAlign: 'left',
                           bgcolor: active ? '#fff' : '#F7F9FE',
                           border: `1px solid ${D.line}`,
@@ -405,7 +322,7 @@ export default function RecordedMeetings() {
                           <Typography
                             noWrap
                             sx={{
-                              fontSize: '.9375rem',
+                              fontSize: '.875rem',
                               fontWeight: active ? 600 : 500,
                               color: D.navy,
                             }}
@@ -457,6 +374,7 @@ export default function RecordedMeetings() {
               />
             </>
           )}
+          </Box>
         </Box>
 
         {/* Selected meeting details */}
@@ -466,8 +384,8 @@ export default function RecordedMeetings() {
             aria-label="Selected recording"
             sx={{
               minWidth: 0,
-              position: { lg: 'sticky' },
-              top: { lg: 12 },
+              alignSelf: 'start',
+              overflowWrap: 'anywhere',
             }}
           >
             <Box sx={sectionHeadSx}>
@@ -488,8 +406,8 @@ export default function RecordedMeetings() {
               component="h2"
               sx={{
                 ...titleSx,
-                mt: 1.5,
-                fontSize: '1.8rem',
+                mt: 0.75,
+                fontSize: '1.35rem',
                 overflowWrap: 'anywhere',
               }}
             >
@@ -521,8 +439,8 @@ export default function RecordedMeetings() {
 
             <Typography
               sx={{
-                mt: 2.5,
-                mb: 1,
+                mt: 1.25,
+                mb: 0.75,
                 fontSize: '.625rem',
                 fontWeight: 600,
                 letterSpacing: '.07em',
@@ -564,7 +482,7 @@ export default function RecordedMeetings() {
                         gap: 1.25,
                         width: '100%',
                         px: 1.5,
-                        py: 1.25,
+                        py: 0.85,
                         textAlign: 'left',
                         bgcolor: available ? '#F7F9FE' : 'transparent',
                         border: `1px solid ${D.line}`,
@@ -626,8 +544,8 @@ export default function RecordedMeetings() {
               endIcon={<ArrowOutwardRoundedIcon />}
               onClick={() => open('')}
               sx={{
-                mt: 2,
-                minHeight: 40,
+                mt: 1.25,
+                minHeight: 36,
                 borderRadius: '6px',
                 fontSize: '.8125rem',
                 fontWeight: 500,

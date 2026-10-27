@@ -112,6 +112,7 @@ export default function AppLayout() {
         minHeight: 0,
         overflow: 'hidden',
         bgcolor: D.page,
+        pb:0
       }}
     >
       <Box

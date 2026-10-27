@@ -27,15 +27,16 @@ function MenuButton({ options, value, onChange, tour, label }) {
         endIcon={<ExpandMoreRoundedIcon />}
         onClick={(event) => setAnchor(event.currentTarget)}
         sx={{
-          minHeight: 38,
-          px: 1.5,
+          minHeight: 36,
+          px: 1.25,
           border: `1px solid ${D.line}`,
           borderRadius: '6px',
           bgcolor: '#fff',
           color: D.navy,
-          fontSize: '.8125rem',
+          fontSize: '.78rem',
           fontWeight: 500,
           textTransform: 'none',
+          whiteSpace: 'nowrap',
           '&:hover': { bgcolor: '#F5F8FD', borderColor: D.navy },
           '&:focus-visible': { outline: `2px solid ${D.navy}`, outlineOffset: 2 },
         }}
@@ -71,38 +72,72 @@ export default function TaskToolbar({
   onSortByChange,
 }) {
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: { xs: 'flex-start', md: 'flex-end' }, gap: 1, minWidth: 0 }}>
-      {/* Status filters */}
-      <Box data-tour="tasks-filters" role="group" aria-label="Filter by status" sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', justifyContent: { xs: 'flex-start', md: 'flex-end' } }}>
-        {STATUS_FILTERS.map((status) => {
-          const active = filter === status
-          return (
-            <Button
-              key={status}
-              aria-pressed={active}
-              onClick={() => onFilterChange(status)}
-              sx={{
-                minWidth: 0,
-                minHeight: 34,
-                px: 1.5,
-                borderRadius: '17px',
-                fontSize: '.8125rem',
-                fontWeight: active ? 600 : 500,
-                textTransform: 'none',
-                color: active ? '#fff' : D.navy,
-                bgcolor: active ? D.navy : '#fff',
-                border: `1px solid ${active ? D.navy : D.line}`,
-                '&:hover': { bgcolor: active ? D.navy : '#E4EBF8' },
-                '&:focus-visible': { outline: `2px solid ${D.navy}`, outlineOffset: 2 },
-              }}
-            >
-              {status} {filterCounts[status]}
-            </Button>
-          )
-        })}
-      </Box>
+    <Box
+      sx={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: { xs: 'stretch', lg: 'flex-end' },
+        gap: 1,
+        minWidth: 0,
+        width: '100%',
+      }}
+    >
+      <Box
+  data-tour="tasks-filters"
+  role="group"
+  aria-label="Filter by status"
+  sx={{
+    display: 'inline-flex',
+    alignItems: 'center',
+    flexWrap: 'nowrap',
+    overflow: 'hidden',
+    border: `1px solid ${D.line}`,
+    borderRadius: '6px',
+    bgcolor: '#fff',
+    justifyContent: { xs: 'flex-start', lg: 'flex-end' },
+  }}
+>
+  {STATUS_FILTERS.map((status, index) => {
+    const active = filter === status
 
-      <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+    return (
+      <Button
+        key={status}
+        aria-pressed={active}
+        onClick={() => onFilterChange(status)}
+        sx={{
+          minWidth: 0,
+          minHeight: 30,
+          px: { xs: 1, sm: 1.4 },
+          py: 0.4,
+          borderRadius: 0,
+          fontSize: '.75rem',
+          fontWeight: active ? 600 : 500,
+          lineHeight: 1.4,
+          whiteSpace: 'nowrap',
+          textTransform: 'none',
+          color: active ? '#fff' : D.navy,
+          bgcolor: active ? D.navy : '#fff',
+          borderRight:
+            index < STATUS_FILTERS.length - 1
+              ? `1px solid ${D.line}`
+              : 'none',
+          '&:hover': {
+            bgcolor: active ? D.navy : '#F1F4FA',
+          },
+          '&:focus-visible': {
+            outline: `2px solid ${D.navy}`,
+            outlineOffset: -2,
+            zIndex: 1,
+          },
+        }}
+      >
+        {status} {filterCounts[status] ?? 0}
+      </Button>
+    )
+  })}
+</Box>
+      <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap', justifyContent: { xs: 'flex-start', lg: 'flex-end' } }}>
         <MenuButton label="Filter by due date" options={DUE_DATE_FILTERS} value={dueDate} onChange={onDueDateChange} />
         <MenuButton label="Sort tasks" tour="tasks-sort" options={SORT_OPTIONS} value={sortBy} onChange={onSortByChange} />
       </Box>

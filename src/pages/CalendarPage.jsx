@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useOutletContext } from 'react-router-dom'
 
 import Box from '@mui/material/Box'
@@ -6,117 +6,363 @@ import Button from '@mui/material/Button'
 import Typography from '@mui/material/Typography'
 
 import AddRoundedIcon from '@mui/icons-material/AddRounded'
+import ArrowOutwardRoundedIcon from '@mui/icons-material/ArrowOutwardRounded'
 
 import CalendarToolbar from '../components/calendar/CalendarToolbar'
-import { DayStrip, DayTimeline, MeetingPanel, MonthGrid, WeekColumns } from '../components/calendar/CalendarViews'
-import { getStatusKey } from '../components/meetings/meetingHelpers'
-import { D, serif, sectionHeadSx, titleSx } from '../components/dashboard/dashTheme'
+import CalendarMeetingList from '../components/calendar/CalendarMeetingList'
+import {
+  DayStrip,
+  WeekColumns,
+  MonthGrid,
+} from '../components/calendar/CalendarViews'
 
-import { dateKey, parseDate } from '../utils/calenderDates'
+import { D, titleSx } from '../components/dashboard/dashTheme'
 import useCalendarState from '../hooks/useCalenderState'
 import useCurrentUser from '../hooks/useCurrentUser'
-import useNow from '../hooks/Usenow'
-
-const AGENDA_LABELS = {
-  day: 'Daily schedule',
-  week: 'Weekly schedule',
-  month: 'Monthly schedule',
-}
+import { dateKey } from '../utils/calenderDates'
 
 const STATUS_TABS = ['All', 'Live', 'Upcoming', 'Done']
 
-// One short line under "Schedule" so people know what selecting something does.
-const VIEW_HINTS = {
-  day: 'Select a meeting to see its details and MeetAI settings.',
-  week: 'Select a meeting to open its day and change its MeetAI settings, or select a day name to see the whole day.',
-  month: 'Select a day to open it and see its meetings.',
+function getMeetingDateKey(meeting) {
+  if (typeof meeting?.date === 'string' && /^\d{4}-\d{2}-\d{2}/.test(meeting.date)) {
+    return meeting.date.slice(0, 10)
+  }
+
+  if (meeting?.start) {
+    const start = new Date(meeting.start)
+    if (!Number.isNaN(start.getTime())) return dateKey(start)
+  }
+
+  if (meeting?.date) {
+    const parsed = new Date(meeting.date)
+    if (!Number.isNaN(parsed.getTime())) return dateKey(parsed)
+  }
+
+  return null
+}
+
+function SelectedMeetingCard({ meeting, onOpen }) {
+  if (!meeting) return null
+
+  const startDate = meeting.start ? new Date(meeting.start) : null
+
+  const dateLabel =
+    startDate && !Number.isNaN(startDate.getTime())
+      ? startDate.toLocaleString([], {
+          weekday: 'short',
+          month: 'short',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+        })
+      : meeting.date || ''
+
+  const participants = Array.isArray(meeting.participants)
+    ? meeting.participants
+        .map((person) =>
+          typeof person === 'string'
+            ? person
+            : person?.name || person?.fullName || person?.email || '',
+        )
+        .filter(Boolean)
+    : []
+
+  return (
+    <Box
+      sx={{
+        mb: 2,
+        p: 2,
+        border: `1px solid ${D.line}`,
+        borderRadius: '8px',
+        bgcolor: '#fff',
+        minWidth: 0,
+      }}
+    >
+      <Typography
+        sx={{
+          mb: 0.75,
+          fontSize: '.6875rem',
+          fontWeight: 600,
+          color: D.muted,
+          textTransform: 'uppercase',
+          letterSpacing: '.06em',
+        }}
+      >
+        Selected meeting
+      </Typography>
+
+      <Typography
+        sx={{
+          fontSize: '1.05rem',
+          fontWeight: 600,
+          color: D.navy,
+          lineHeight: 1.4,
+          overflowWrap: 'anywhere',
+        }}
+      >
+        {meeting.title || 'Untitled meeting'}
+      </Typography>
+
+      <Typography
+        sx={{
+          mt: 0.75,
+          fontSize: '.8125rem',
+          color: D.text,
+          lineHeight: 1.6,
+          overflowWrap: 'anywhere',
+        }}
+      >
+        {meeting.platform || 'Platform not specified'}
+        {dateLabel ? ` · ${dateLabel}` : ''}
+      </Typography>
+
+      {participants.length > 0 && (
+        <Typography
+          sx={{
+            mt: 0.5,
+            fontSize: '.8125rem',
+            color: D.muted,
+            lineHeight: 1.6,
+            overflowWrap: 'anywhere',
+          }}
+        >
+          {participants.join(', ')}
+        </Typography>
+      )}
+
+      {meeting.description && (
+        <Typography
+          sx={{
+            mt: 0.75,
+            fontSize: '.8125rem',
+            color: D.text,
+            lineHeight: 1.6,
+            whiteSpace: 'pre-wrap',
+            overflowWrap: 'anywhere',
+          }}
+        >
+          {meeting.description}
+        </Typography>
+      )}
+
+      <Button
+        variant="contained"
+        disableElevation
+        endIcon={<ArrowOutwardRoundedIcon />}
+        onClick={() => onOpen(meeting)}
+        sx={{
+          mt: 1.5,
+          minHeight: 36,
+          px: 1.5,
+          borderRadius: '6px',
+          fontSize: '.8rem',
+          fontWeight: 500,
+          textTransform: 'none',
+          bgcolor: D.navy,
+          color: '#fff',
+          '&:hover': { bgcolor: '#0D1C47' },
+          '&:focus-visible': {
+            outline: `2px solid ${D.navy}`,
+            outlineOffset: 2,
+          },
+        }}
+      >
+        Open meeting details
+      </Button>
+    </Box>
+  )
 }
 
 export default function CalendarPage() {
   const { openCreate } = useOutletContext() || {}
   const navigate = useNavigate()
-  const now = useNow()
   const calendar = useCalendarState(useCurrentUser())
 
   const {
-    selectedDate,
     view,
-    visibleMeetings,
-    filteredMeetings,
+    visibleMeetings = [],
     filters,
     setFilters,
     clearFilters,
     platforms,
     activeFilterCount,
-    counts,
+    counts = {},
     filter,
     setFilter,
     setView,
-    title,
     selectedDateLabel,
     settings,
     onSettingsChange,
   } = calendar
 
-  const [selectedId, setSelectedId] = useState(null)
+  const [selectedMeetingId, setSelectedMeetingId] = useState(null)
 
-  // Day view: keep the chosen meeting if it is still shown, otherwise pick the live one, the next one, or the first.
-  const selected =
-    visibleMeetings.find((meeting) => meeting.id === selectedId) ??
-    visibleMeetings.find((meeting) => getStatusKey(meeting) === 'Live') ??
-    visibleMeetings.find((meeting) => getStatusKey(meeting) === 'Upcoming') ??
-    visibleMeetings[0]
+  const selectedMeeting = useMemo(
+    () =>
+      visibleMeetings.find((meeting) => meeting.id === selectedMeetingId) ||
+      null,
+    [visibleMeetings, selectedMeetingId],
+  )
 
-  const total = visibleMeetings.length
-  const filtersNote =
-    activeFilterCount > 0 ? ` · ${activeFilterCount} filter${activeFilterCount === 1 ? '' : 's'} on` : ''
+  // Keep the selected meeting only while it remains visible after filters change.
+  useEffect(() => {
+    if (
+      selectedMeetingId !== null &&
+      !visibleMeetings.some((meeting) => meeting.id === selectedMeetingId)
+    ) {
+      setSelectedMeetingId(null)
+    }
+  }, [visibleMeetings, selectedMeetingId])
 
-  const openMeeting = (meeting) => navigate(`/meetings/${meeting.id}`)
+  // The calendar grid controls the date period shown in the meeting list.
+  const periodMeetings = useMemo(() => {
+    const selectedDate = calendar.selectedDate
+    if (!(selectedDate instanceof Date) || Number.isNaN(selectedDate.getTime())) {
+      return visibleMeetings
+    }
 
-  // Week view: selecting a meeting opens its day with that meeting chosen,
-  // so its MeetAI switches are right there and "Open meeting details" goes to the full page.
-  const openInDay = (meeting) => {
-    setSelectedId(meeting.id)
-    calendar.selectDay(parseDate(meeting.date))
+    const selectedKey = dateKey(selectedDate)
+
+    if (view === 'day') {
+      return visibleMeetings.filter(
+        (meeting) => getMeetingDateKey(meeting) === selectedKey,
+      )
+    }
+
+    if (view === 'week') {
+      const weekStart = new Date(
+        selectedDate.getFullYear(),
+        selectedDate.getMonth(),
+        selectedDate.getDate(),
+      )
+      weekStart.setDate(weekStart.getDate() - weekStart.getDay())
+      const weekEnd = new Date(weekStart)
+      weekEnd.setDate(weekStart.getDate() + 7)
+
+      return visibleMeetings.filter((meeting) => {
+        const key = getMeetingDateKey(meeting)
+        if (!key) return false
+        const meetingDate = new Date(`${key}T12:00:00`)
+        return (
+          !Number.isNaN(meetingDate.getTime()) &&
+          meetingDate >= weekStart &&
+          meetingDate < weekEnd
+        )
+      })
+    }
+
+    if (view === 'month') {
+      return visibleMeetings.filter((meeting) => {
+        const key = getMeetingDateKey(meeting)
+        if (!key) return false
+        const [year, month] = key.split('-').map(Number)
+        return (
+          year === selectedDate.getFullYear() &&
+          month === selectedDate.getMonth() + 1
+        )
+      })
+    }
+
+    return visibleMeetings
+  }, [visibleMeetings, calendar.selectedDate, view])
+
+  const openMeeting = (meeting) => {
+    if (meeting?.id) navigate(`/meetings/${meeting.id}`)
   }
 
   return (
-    <Box sx={{ width: '100%', minWidth: 0, color: D.text }}>
-      {/* Title band, same treatment as the other pages */}
+    <Box
+      component="main"
+      sx={{
+        width: '100%',
+        minWidth: 0,
+        color: D.text,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 1.5,
+      }}
+    >
       <Box
-        component="section"
-        aria-label="Calendar overview"
         sx={{
-          display: 'flex',
+          display: 'grid',
+          gridTemplateColumns: {
+            xs: 'minmax(0, 1fr)',
+            md: 'auto minmax(0, 1fr) auto',
+          },
           alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: 2,
-          flexWrap: 'wrap',
-          mx: { xs: -1.5, md: -2 },
-          mt: { xs: -1.5, md: -2 },
-          px: { xs: 1.5, md: 2 },
-          py: 2.5,
-          bgcolor: D.band,
+          gap: { xs: 1.5, md: 1 },
+          width: '100%',
+          minWidth: 0,
         }}
       >
-        <Box sx={{ minWidth: 0, flex: '1 1 320px' }}>
-          <Typography sx={{ fontSize: '.6875rem', fontWeight: 500, letterSpacing: '.06em', textTransform: 'uppercase', color: D.muted }}>
-            Calendar · {AGENDA_LABELS[view]}
-          </Typography>
+        <Box
+          role="group"
+          aria-label="Filter meetings by status"
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            width: { xs: '100%', md: 'fit-content' },
+            minWidth: 0,
+            border: `1px solid ${D.line}`,
+            borderRadius: '6px',
+            overflow: 'hidden',
+            bgcolor: '#fff',
+          }}
+        >
+          {STATUS_TABS.map((tab) => {
+            const active = filter === tab
+            return (
+              <Button
+                key={tab}
+                aria-pressed={active}
+                onClick={() => setFilter(tab)}
+                sx={{
+                  flex: { xs: '1 1 0', md: '0 0 auto' },
+                  minWidth: 0,
+                  minHeight: 36,
+                  px: { xs: 0.75, md: 1.25 },
+                  borderRadius: 0,
+                  borderRight: `1px solid ${D.line}`,
+                  '&:last-of-type': { borderRight: 0 },
+                  fontSize: '.8125rem',
+                  fontWeight: active ? 600 : 500,
+                  textTransform: 'none',
+                  whiteSpace: 'nowrap',
+                  bgcolor: active ? D.navy : '#fff',
+                  color: active ? '#fff' : D.navy,
+                  '&:hover': { bgcolor: active ? D.navy : '#F5F8FD' },
+                  '&:focus-visible': {
+                    outline: `2px solid ${D.navy}`,
+                    outlineOffset: -4,
+                  },
+                }}
+              >
+                {tab} {counts[tab]}
+              </Button>
+            )
+          })}
+        </Box>
 
-          <Typography
-            component="h1"
-            sx={{ mt: 0.5, fontFamily: serif, fontWeight: 400, fontSize: { xs: '1.9rem', md: '2.6rem' }, lineHeight: 1.1, color: D.navy }}
-          >
-            {title}
-          </Typography>
-
-          <Typography aria-live="polite" sx={{ mt: 0.75, fontSize: '.8125rem', color: D.text }}>
-            <Box component="strong" sx={{ fontWeight: 600, color: D.navy }}>
-              {total} meeting{total === 1 ? '' : 's'}
-            </Box>
-            {filtersNote}
-          </Typography>
+        <Box
+          data-tour="calendar-date-navigation"
+          sx={{ width: '100%', minWidth: 0, '& > *': { minWidth: 0 } }}
+        >
+          <CalendarToolbar
+            view={view}
+            label={selectedDateLabel}
+            onViewChange={setView}
+            onPrevious={calendar.handlePrevious}
+            onNext={calendar.handleNext}
+            onToday={calendar.handleToday}
+            onYesterday={calendar.handleYesterday}
+            onTomorrow={calendar.handleTomorrow}
+            onCurrentPeriod={calendar.handleCurrentPeriod}
+            filters={filters}
+            onFiltersChange={setFilters}
+            onClearFilters={clearFilters}
+            platforms={platforms}
+            activeFilterCount={activeFilterCount}
+          />
         </Box>
 
         <Button
@@ -126,122 +372,135 @@ export default function CalendarPage() {
           startIcon={<AddRoundedIcon />}
           onClick={() => openCreate?.()}
           sx={{
-            minHeight: 40,
-            px: 2,
+            minHeight: 36,
+            width: { xs: '100%', md: 'auto' },
+            px: 1.5,
             borderRadius: '6px',
-            fontSize: '.8125rem',
+            fontSize: '.8rem',
             fontWeight: 500,
             textTransform: 'none',
             bgcolor: D.navy,
             color: '#fff',
+            whiteSpace: 'nowrap',
+            flexShrink: 0,
             '&:hover': { bgcolor: '#0D1C47' },
-            '&:focus-visible': { outline: `2px solid ${D.navy}`, outlineOffset: 2 },
+            '&:focus-visible': {
+              outline: `2px solid ${D.navy}`,
+              outlineOffset: 2,
+            },
           }}
         >
-          Schedule a Meeting
+          Schedule meeting
         </Button>
       </Box>
 
-      <Box data-tour="calendar-date-navigation" sx={{ pt: 2.5 }}>
-        <CalendarToolbar
-          view={view}
-          label={selectedDateLabel}
-          onViewChange={setView}
-          onPrevious={calendar.handlePrevious}
-          onNext={calendar.handleNext}
-          onToday={calendar.handleToday}
-          onYesterday={calendar.handleYesterday}
-          onTomorrow={calendar.handleTomorrow}
-          onCurrentPeriod={calendar.handleCurrentPeriod}
-          filters={filters}
-          onFiltersChange={setFilters}
-          onClearFilters={clearFilters}
-          platforms={platforms}
-          activeFilterCount={activeFilterCount}
-        />
-      </Box>
-
-      {/* Day and Week views start with a strip of the week's seven days */}
-      {view !== 'month' && (
-        <Box sx={{ pt: 2.5 }}>
-          <DayStrip selectedDate={selectedDate} meetings={filteredMeetings} onOpenDay={calendar.selectDay} />
-        </Box>
-      )}
-
-      <Box component="section" aria-label="Schedule" data-tour="calendar-schedule" sx={{ pt: 3, minWidth: 0 }}>
-        <Box sx={{ ...sectionHeadSx, mb: 0.75 }}>
+      <Box
+        component="section"
+        aria-label="Schedule"
+        data-tour="calendar-schedule"
+        sx={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: 0.5 }}
+      >
+        <Box
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 1,
+          }}
+        >
           <Typography component="h2" sx={titleSx}>
             Schedule
           </Typography>
-
-          <Box role="group" aria-label="Filter by status" sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
-            {STATUS_TABS.map((tab) => (
-              <Button
-                key={tab}
-                aria-pressed={filter === tab}
-                onClick={() => setFilter(tab)}
-                sx={{
-                  minWidth: 0,
-                  minHeight: 30,
-                  px: 1.25,
-                  borderRadius: '15px',
-                  fontSize: '.75rem',
-                  fontWeight: filter === tab ? 600 : 500,
-                  textTransform: 'none',
-                  color: filter === tab ? '#fff' : D.navy,
-                  bgcolor: filter === tab ? D.navy : 'transparent',
-                  border: `1px solid ${filter === tab ? D.navy : D.line}`,
-                  '&:hover': { bgcolor: filter === tab ? D.navy : '#E4EBF8' },
-                  '&:focus-visible': { outline: `2px solid ${D.navy}`, outlineOffset: 2 },
-                }}
-              >
-                {tab} {counts[tab]}
-              </Button>
-            ))}
-          </Box>
+          <Typography
+            aria-live="polite"
+            sx={{ fontSize: '.75rem', color: D.muted, flexShrink: 0 }}
+          >
+            {periodMeetings.length} meeting{periodMeetings.length === 1 ? '' : 's'}
+            {activeFilterCount > 0 &&
+              ` · ${activeFilterCount} filter${activeFilterCount === 1 ? '' : 's'}`}
+          </Typography>
         </Box>
 
-        <Typography sx={{ mb: 2, fontSize: '.75rem', color: D.muted }}>{VIEW_HINTS[view]}</Typography>
+        <Typography sx={{ fontSize: '.75rem', color: D.muted, mb: 1.5 }}>
+          Select a date on the calendar to filter meetings for that day, week, or month.
+        </Typography>
 
-        {view === 'day' && (
+        <Box
+          sx={{
+            display: 'grid',
+            gridTemplateColumns: {
+              xs: 'minmax(0, 1fr)',
+              md: 'minmax(0, 1.2fr) minmax(280px, 0.8fr)',
+            },
+            alignItems: 'start',
+            gap: { xs: 3, md: 4 },
+            width: '100%',
+            minWidth: 0,
+          }}
+        >
+          <Box sx={{ minWidth: 0, order: { xs: 2, md: 1 } }}>
+            {periodMeetings.length === 0 ? (
+              <Typography
+                role="status"
+                sx={{ fontSize: '.8125rem', color: D.muted, py: 2 }}
+              >
+                No meetings match the selected date range and current filters.
+              </Typography>
+            ) : (
+              <CalendarMeetingList
+                meetings={periodMeetings}
+                view={view}
+                selectedMeetingId={selectedMeetingId}
+                onSelectMeeting={(meeting) => setSelectedMeetingId(meeting.id)}
+                settings={settings}
+                onSettingsChange={onSettingsChange}
+              />
+            )}
+          </Box>
+
           <Box
             sx={{
-              display: 'grid',
-              gridTemplateColumns: { xs: 'minmax(0, 1fr)', lg: 'minmax(0, 1.9fr) minmax(300px, 1fr)' },
-              columnGap: 3.5,
-              rowGap: 3,
-              alignItems: 'start',
+              minWidth: 0,
+              order: { xs: 1, md: 2 },
+              border: `1px solid ${D.line}`,
+              borderRadius: '8px',
+              p: { xs: 1.5, md: 2 },
+              bgcolor: '#fff',
+              position: { md: 'sticky' },
+              top: { md: 16 },
             }}
           >
-            <DayTimeline
-              meetings={visibleMeetings}
-              selectedId={selected?.id}
-              onSelect={setSelectedId}
-              now={now}
-              isToday={dateKey(selectedDate) === dateKey(now)}
-            />
+            {selectedMeeting && (
+              <SelectedMeetingCard meeting={selectedMeeting} onOpen={openMeeting} />
+            )}
 
-            <MeetingPanel
-              meeting={selected}
-              settings={settings}
-              onSettingsChange={onSettingsChange}
-              onOpen={openMeeting}
-            />
+            <Box sx={{ minWidth: 0 }}>
+              {view === 'day' && (
+                <DayStrip
+                  selectedDate={calendar.selectedDate}
+                  meetings={visibleMeetings}
+                  onOpenDay={(date) => calendar.selectDay(date)}
+                />
+              )}
+
+              {view === 'week' && (
+                <WeekColumns
+                  selectedDate={calendar.selectedDate}
+                  meetings={visibleMeetings}
+                  onOpenDay={(date) => calendar.selectDay(date)}
+                />
+              )}
+
+              {view === 'month' && (
+                <MonthGrid
+                  selectedDate={calendar.selectedDate}
+                  meetings={visibleMeetings}
+                  onOpenDay={(date) => calendar.selectDay(date)}
+                />
+              )}
+            </Box>
           </Box>
-        )}
-
-        {view === 'week' && (
-          <WeekColumns
-            selectedDate={selectedDate}
-            meetings={visibleMeetings}
-            onOpenDay={calendar.selectDay}
-            onOpenMeeting={openInDay}
-          />
-        )}
-
-        {view === 'month' && (
-          <MonthGrid selectedDate={selectedDate} meetings={visibleMeetings} onOpenDay={calendar.selectDay} />
-        )}
+        </Box>
       </Box>
     </Box>
   )

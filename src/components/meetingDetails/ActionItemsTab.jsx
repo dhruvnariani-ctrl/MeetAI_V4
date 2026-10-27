@@ -6,7 +6,11 @@ import { SectionCard, NotReadyCard } from './ui'
 export default function ActionItemsTab({ meeting, meetingState }) {
   const items = meeting.actionItems || []
 
-  if (meetingState?.type === 'upcoming') {
+  const upcoming =
+    meetingState?.type === 'upcoming' ||
+    meetingState?.type === 'starting-soon'
+
+  if (upcoming) {
     return (
       <NotReadyCard title="Action items are not available yet">
         Action items will be created from the meeting after it takes place.
@@ -15,14 +19,21 @@ export default function ActionItemsTab({ meeting, meetingState }) {
   }
 
   if (items.length === 0) {
-    return <NotReadyCard title="No action items">No action items have been recorded for this meeting.</NotReadyCard>
+    return (
+      <NotReadyCard title="No action items">
+        No action items have been recorded for this meeting.
+      </NotReadyCard>
+    )
   }
 
   return (
     <SectionCard title="Action items">
       <Box sx={{ display: 'grid', gap: 1 }}>
         {items.map((item, index) => (
-          <ActionItem key={item.id || index} item={item} />
+          <ActionItem
+            key={item.id || index}
+            item={item}
+          />
         ))}
       </Box>
     </SectionCard>
