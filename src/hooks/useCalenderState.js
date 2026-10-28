@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
 import {
   saveMeetingSettings,
@@ -35,6 +35,8 @@ export const DEFAULT_FILTERS = {
   hostedByMe: false,
 }
 
+const STATUS_REFRESH_INTERVAL = 30_000
+
 const startOfToday = () => {
   const today = new Date()
   today.setHours(0, 0, 0, 0)
@@ -51,11 +53,6 @@ const valuesOf = (value) =>
     ? [value.id, value.email, value.name]
     : [value]
 
-/*
- * "Hosted by me": compares the current user with the meeting's
- * owner / organizer / host. Adjust the field names below if your
- * meeting objects store the owner differently.
- */
 function isHostedByUser(meeting, user) {
   if (!user) return false
 
@@ -75,49 +72,80 @@ function isHostedByUser(meeting, user) {
 }
 
 /*
- * All Calendar page state: selected date, view, filters,
- * per-meeting MeetAI settings, navigation and the visible list.
+ * Recalculate status from the meeting's real start/end timestamps.
+ * This avoids relying on a status captured when meetings were loaded.
  */
+function getDynamicMeetingStatus(meeting, now) {
+  const startMs = new Date(meeting.start).getTime()
+  const endMs = new Date(meeting.end).getTime()
+  const nowMs = now.getTime()
+
+  // Invalid or missing timestamps fall back to the existing status helper.
+  if (
+    !Number.isFinite(startMs) ||
+    !Number.isFinite(endMs) ||
+    endMs < startMs
+  ) {
+    return getStatusKey(meeting)
+  }
+
+  if (nowMs >= endMs) return 'Done'
+  if (nowMs >= startMs) return 'Live'
+
+  return 'Upcoming'
+}
+
 export default function useCalendarState(user) {
-  /*
-   * Hooks must always run in the same order, so the fallback
-   * user is read unconditionally.
-   */
   const fallbackUser = useCurrentUser()
   const currentUser = user ?? fallbackUser
 
   /*
-   * Dashboard and Calendar use the same meeting source.
-   *
-   * getCalendarMeetings filters the meetings so only meetings
-   * where the current user is the owner or a participant are used.
+   * Refresh the clock periodically so statuses update while
+   * the Calendar page stays open.
    */
-  const meetings = useMemo(
-    () => getCalendarMeetings(currentUser),
-    [currentUser],
-  )
+  const [now, setNow] = useState(() => new Date())
+
+  useEffect(() => {
+    const refreshStatus = () => setNow(new Date())
+
+    const intervalId = setInterval(
+      refreshStatus,
+      STATUS_REFRESH_INTERVAL,
+    )
+
+    // Recalculate immediately when the user returns to the tab.
+    window.addEventListener('focus', refreshStatus)
+    document.addEventListener('visibilitychange', refreshStatus)
+
+    return () => {
+      clearInterval(intervalId)
+      window.removeEventListener('focus', refreshStatus)
+      document.removeEventListener('visibilitychange', refreshStatus)
+    }
+  }, [])
+
+  const meetings = useMemo(() => {
+    const currentMeetings = getCalendarMeetings(currentUser)
+
+    return currentMeetings.map((meeting) => ({
+      ...meeting,
+      type: getDynamicMeetingStatus(meeting, now),
+    }))
+  }, [currentUser, now])
 
   const [selectedDate, setSelectedDate] = useState(() => new Date())
   const [view, setView] = useState('day')
   const [filter, setFilter] = useState('All')
   const [filters, setFilters] = useState(DEFAULT_FILTERS)
 
-  /*
-   * Saved MeetAI settings (shared with the Dashboard and Meeting Details).
-   * Meetings without a saved value fall back to meeting.meetAI in getMeetingToggleSettings.
-   */
   const settings = useMeetingSettings()
-
   const selectedKey = dateKey(selectedDate)
 
-  /* ---------------------------------------------------------------- */
-  /* Filters (platform / MeetAI invited / hosted by me)                */
-  /* ---------------------------------------------------------------- */
-
-  /* Platform options come from the data, so nothing is hard-coded. */
   const platforms = useMemo(
     () =>
-      [...new Set(meetings.map((meeting) => meeting.platform).filter(Boolean))].sort(),
+      [...new Set(
+        meetings.map((meeting) => meeting.platform).filter(Boolean),
+      )].sort(),
     [meetings],
   )
 
@@ -128,7 +156,6 @@ export default function useCalendarState(user) {
 
   const clearFilters = () => setFilters(DEFAULT_FILTERS)
 
-  /* Every meeting that passes the filters, across all dates. */
   const filteredMeetings = useMemo(() => {
     if (activeFilterCount === 0) return meetings
 
@@ -142,28 +169,38 @@ export default function useCalendarState(user) {
 
       if (
         filters.meetAIOnly &&
-        !getMeetingToggleSettings(meeting, settings?.[meeting.id]).autoJoin
+        !getMeetingToggleSettings(
+          meeting,
+          settings?.[meeting.id],
+        ).autoJoin
       ) {
         return false
       }
 
-      if (filters.hostedByMe && !isHostedByUser(meeting, currentUser)) {
+      if (
+        filters.hostedByMe &&
+        !isHostedByUser(meeting, currentUser)
+      ) {
         return false
       }
 
       return true
     })
-  }, [meetings, filters, activeFilterCount, settings, currentUser])
-
-  /* ---------------------------------------------------------------- */
-  /* Meetings in the selected Day / Week / Month                       */
-  /* ---------------------------------------------------------------- */
+  }, [
+    meetings,
+    filters,
+    activeFilterCount,
+    settings,
+    currentUser,
+  ])
 
   const rangeMeetings = useMemo(() => {
     let result = [...filteredMeetings]
 
     if (view === 'day') {
-      result = result.filter((meeting) => meeting.date === selectedKey)
+      result = result.filter(
+        (meeting) => meeting.date === selectedKey,
+      )
     }
 
     if (view === 'week') {
@@ -187,10 +224,6 @@ export default function useCalendarState(user) {
       })
     }
 
-    /*
-     * Sort by calendar date, then by numeric time
-     * instead of sorting formatted time strings.
-     */
     return result.sort((a, b) => {
       if (a.date !== b.date) {
         return a.date.localeCompare(b.date)
@@ -200,9 +233,13 @@ export default function useCalendarState(user) {
     })
   }, [filteredMeetings, selectedDate, selectedKey, view])
 
-  /* Counts per status for the selected range. */
   const counts = useMemo(() => {
-    const result = { All: rangeMeetings.length, Live: 0, Upcoming: 0, Done: 0 }
+    const result = {
+      All: rangeMeetings.length,
+      Live: 0,
+      Upcoming: 0,
+      Done: 0,
+    }
 
     rangeMeetings.forEach((meeting) => {
       result[getStatusKey(meeting)] += 1
@@ -211,20 +248,14 @@ export default function useCalendarState(user) {
     return result
   }, [rangeMeetings])
 
-  /* Optional single-status filter (kept for compatibility). */
   const visibleMeetings = useMemo(() => {
     if (filter === 'All') return rangeMeetings
 
-    return rangeMeetings.filter((meeting) => getStatusKey(meeting) === filter)
+    return rangeMeetings.filter(
+      (meeting) => getStatusKey(meeting) === filter,
+    )
   }, [rangeMeetings, filter])
 
-  /* ---------------------------------------------------------------- */
-  /* MeetAI settings                                                   */
-  /* ---------------------------------------------------------------- */
-
-  /*
-   * Done meetings never affect the overall switch.
-   */
   const activeVisibleMeetings = visibleMeetings.filter(
     (meeting) => getStatusKey(meeting) !== 'Done',
   )
@@ -232,10 +263,13 @@ export default function useCalendarState(user) {
   const allVisibleAutoJoin =
     activeVisibleMeetings.length > 0 &&
     activeVisibleMeetings.every(
-      (meeting) => getMeetingToggleSettings(meeting, settings?.[meeting.id]).autoJoin,
+      (meeting) =>
+        getMeetingToggleSettings(
+          meeting,
+          settings?.[meeting.id],
+        ).autoJoin,
     )
 
-  // Saving announces the change, and useMeetingSettings picks it up.
   const onSettingsChange = (meetingId, changes) => {
     saveMeetingSettings(meetingId, changes)
   }
@@ -244,17 +278,11 @@ export default function useCalendarState(user) {
     saveMeetingSettingsBulk(activeVisibleMeetings, checked)
   }
 
-  /* ---------------------------------------------------------------- */
-  /* Navigation                                                        */
-  /* ---------------------------------------------------------------- */
-
-  /* Pick a date and jump to its Day view. */
   const selectDay = (date) => {
     setSelectedDate(date)
     setView('day')
   }
 
-  /* Pick a date and stay in the current view (Day / Week / Month). */
   const selectDate = (date) => {
     setSelectedDate(date)
   }
@@ -269,10 +297,9 @@ export default function useCalendarState(user) {
   const handleYesterday = () => selectQuickDate(-1)
   const handleTomorrow = () => selectQuickDate(1)
 
-  /*
-   * Back to the current period without changing the view.
-   */
-  const handleCurrentPeriod = () => setSelectedDate(startOfToday())
+  const handleCurrentPeriod = () => {
+    setSelectedDate(startOfToday())
+  }
 
   const navigateCalendar = (direction) => {
     const next = new Date(selectedDate)
@@ -286,9 +313,6 @@ export default function useCalendarState(user) {
     }
 
     if (view === 'month') {
-      /*
-       * Anchor to the 1st so Jan 31 can't skip a month.
-       */
       next.setDate(1)
       next.setMonth(next.getMonth() + direction)
     }
@@ -298,10 +322,6 @@ export default function useCalendarState(user) {
 
   const handlePrevious = () => navigateCalendar(-1)
   const handleNext = () => navigateCalendar(1)
-
-  /* ---------------------------------------------------------------- */
-  /* Labels                                                            */
-  /* ---------------------------------------------------------------- */
 
   const title =
     view === 'day'

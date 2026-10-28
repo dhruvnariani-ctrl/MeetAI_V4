@@ -1,4 +1,3 @@
-
 import { useMemo } from 'react'
 
 import Box from '@mui/material/Box'
@@ -115,13 +114,39 @@ function participantName(participant) {
   )
 }
 
+/*
+ * Prefer the dynamically calculated meeting.type from useCalenderState.
+ * Fall back to the start/end timestamps if type is not available.
+ */
 function statusFor(meeting) {
-  const status = String(meeting.status || '').toLowerCase()
+  const rawStatus = String(
+    meeting?.type ?? meeting?.status ?? '',
+  ).trim().toLowerCase()
 
-  if (status === 'live') return STATUS.Live
+  if (rawStatus === 'live' || rawStatus === 'in progress') {
+    return STATUS.Live
+  }
 
-  if (status === 'done' || status === 'completed') {
+  if (
+    rawStatus === 'done' ||
+    rawStatus === 'completed'
+  ) {
     return STATUS.Done
+  }
+
+  if (meeting?.start && meeting?.end) {
+    const start = new Date(meeting.start).getTime()
+    const end = new Date(meeting.end).getTime()
+    const now = Date.now()
+
+    if (
+      Number.isFinite(start) &&
+      Number.isFinite(end) &&
+      end >= start
+    ) {
+      if (now >= end) return STATUS.Done
+      if (now >= start) return STATUS.Live
+    }
   }
 
   return STATUS.Upcoming
@@ -154,7 +179,6 @@ function MeetingRow({
         '&:last-child': { mb: 0 },
       }}
     >
-      {/* Meeting time */}
       <Box sx={{ pt: 1.5, minWidth: 0 }}>
         <Typography
           sx={{
@@ -179,7 +203,6 @@ function MeetingRow({
         </Typography>
       </Box>
 
-      {/* Meeting card */}
       <Box
         sx={{
           minWidth: 0,
@@ -194,7 +217,6 @@ function MeetingRow({
           },
         }}
       >
-        {/* Selecting the meeting does not navigate away */}
         <ButtonBase
           onClick={() => onSelectMeeting?.(meeting)}
           aria-label={`Select ${meeting.title || 'meeting'}`}
@@ -276,7 +298,6 @@ function MeetingRow({
           </Box>
         </ButtonBase>
 
-        {/* Platform, participants and MeetAI controls share a row */}
         <Box
           sx={{
             px: { xs: 1.25, sm: 2 },

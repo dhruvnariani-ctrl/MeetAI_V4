@@ -37,13 +37,6 @@ const GLOBAL_STEPS = [
 
 /* ---------- Dashboard ---------- */
 export const DASHBOARD_PAGE_TOUR_STEPS = [
-  step('/', tour('dashboard-welcome'), 'Your day at a glance',
-    'The greeting summarises today: how many meetings are done, which one is live, and how many are still to come.',
-    'Read the summary under your name.'),
-  step('/', tour('dashboard-new-meeting'), 'Quick actions',
-    'Join with a link lets MeetAI join a meeting you already have a link for. Schedule a Meeting opens the event form.',
-    'Select Join with a link when you need MeetAI in a meeting right away.',
-    'Both open a form, and nothing is saved until you submit it.'),
   step('/', tour('dashboard-todays-meetings'), 'Today’s meetings',
     'Done meetings are listed first, then a line marks the time now, then the live meeting and what is coming up.',
     'Select a meeting to open its details.',

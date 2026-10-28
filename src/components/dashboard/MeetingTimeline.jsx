@@ -111,6 +111,7 @@ function PastRow({ meeting }) {
           minHeight: 32,
           pl: 1.5,
           borderLeft: `1px solid ${D.line}`,
+          minWidth: 0,
         }}
       >
         <CheckRoundedIcon sx={{ fontSize: 14, color: D.muted }} />
@@ -180,6 +181,7 @@ function LiveCard({ meeting, now, settings, onSettingsChange }) {
           borderRadius: '6px',
           px: { xs: 1.5, sm: 2 },
           py: 1.5,
+          minWidth: 0,
         }}
       >
         <Box
@@ -319,6 +321,7 @@ function UpcomingRow({ meeting, settings, onSettingsChange, first }) {
           borderLeft: `1px solid ${D.line}`,
           px: 1.5,
           py: 1,
+          minWidth: 0,
         }}
       >
         <Box
@@ -410,6 +413,7 @@ export default function MeetingTimeline({
   meetingSettings = {},
   onSettingsChange,
   onSchedule,
+  onInvite,
 }) {
   const navigate = useNavigate()
   const [showDone, setShowDone] = useState(false)
@@ -478,6 +482,25 @@ export default function MeetingTimeline({
             }}
           >
             Open Calendar
+          </Button>
+
+          <Button
+            variant="outlined"
+            size="small"
+            startIcon={<VideocamOutlinedIcon />}
+            onClick={onInvite}
+            sx={{
+              minHeight: 32,
+              px: 1.25,
+              borderColor: D.line,
+              color: D.navy,
+              fontSize: '.75rem',
+              fontWeight: 600,
+              textTransform: 'none',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            Invite MeetAI
           </Button>
 
           <Button

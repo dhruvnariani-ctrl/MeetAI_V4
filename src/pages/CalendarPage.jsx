@@ -19,26 +19,84 @@ import {
 import { D, titleSx } from '../components/dashboard/dashTheme'
 import useCalendarState from '../hooks/useCalenderState'
 import useCurrentUser from '../hooks/useCurrentUser'
-import { dateKey } from '../utils/calenderDates'
+import {
+  dateKey,
+  endOfWeek,
+  startOfWeek,
+} from '../utils/calenderDates'
 
 const STATUS_TABS = ['All', 'Live', 'Upcoming', 'Done']
 
 function getMeetingDateKey(meeting) {
-  if (typeof meeting?.date === 'string' && /^\d{4}-\d{2}-\d{2}/.test(meeting.date)) {
+  if (
+    typeof meeting?.date === 'string' &&
+    /^\d{4}-\d{2}-\d{2}/.test(meeting.date)
+  ) {
     return meeting.date.slice(0, 10)
   }
 
   if (meeting?.start) {
     const start = new Date(meeting.start)
-    if (!Number.isNaN(start.getTime())) return dateKey(start)
+
+    if (!Number.isNaN(start.getTime())) {
+      return dateKey(start)
+    }
   }
 
   if (meeting?.date) {
     const parsed = new Date(meeting.date)
-    if (!Number.isNaN(parsed.getTime())) return dateKey(parsed)
+
+    if (!Number.isNaN(parsed.getTime())) {
+      return dateKey(parsed)
+    }
   }
 
   return null
+}
+
+function getCalendarHeading(view, selectedDate) {
+  if (
+    !(selectedDate instanceof Date) ||
+    Number.isNaN(selectedDate.getTime())
+  ) {
+    return ''
+  }
+
+  if (view === 'day') {
+    return selectedDate.toLocaleDateString('en-US', {
+      weekday: 'long',
+      month: 'long',
+      day: 'numeric',
+      year: 'numeric',
+    })
+  }
+
+  if (view === 'week') {
+    const start = startOfWeek(selectedDate)
+    const end = endOfWeek(selectedDate)
+
+    const formatDate = (date, includeYear = false) =>
+      date.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        ...(includeYear ? { year: 'numeric' } : {}),
+      })
+
+    const sameYear = start.getFullYear() === end.getFullYear()
+
+    return sameYear
+      ? `${formatDate(start)} – ${formatDate(end, true)}`
+      : `${formatDate(start, true)} – ${formatDate(end, true)}`
+  }
+
+  if (view === 'month') {
+    return selectedDate.toLocaleDateString('en-US', {
+      month: 'long',
+      year: 'numeric',
+    })
+  }
+
+  return ''
 }
 
 function SelectedMeetingCard({ meeting, onOpen }) {
@@ -176,7 +234,8 @@ function SelectedMeetingCard({ meeting, onOpen }) {
 export default function CalendarPage() {
   const { openCreate } = useOutletContext() || {}
   const navigate = useNavigate()
-  const calendar = useCalendarState(useCurrentUser())
+  const currentUser = useCurrentUser()
+  const calendar = useCalendarState(currentUser)
 
   const {
     view,
@@ -199,54 +258,55 @@ export default function CalendarPage() {
 
   const selectedMeeting = useMemo(
     () =>
-      visibleMeetings.find((meeting) => meeting.id === selectedMeetingId) ||
-      null,
+      visibleMeetings.find(
+        (meeting) => meeting.id === selectedMeetingId,
+      ) || null,
     [visibleMeetings, selectedMeetingId],
   )
 
-  // Keep the selected meeting only while it remains visible after filters change.
   useEffect(() => {
     if (
       selectedMeetingId !== null &&
-      !visibleMeetings.some((meeting) => meeting.id === selectedMeetingId)
+      !visibleMeetings.some(
+        (meeting) => meeting.id === selectedMeetingId,
+      )
     ) {
       setSelectedMeetingId(null)
     }
   }, [visibleMeetings, selectedMeetingId])
 
-  // The calendar grid controls the date period shown in the meeting list.
   const periodMeetings = useMemo(() => {
     const selectedDate = calendar.selectedDate
-    if (!(selectedDate instanceof Date) || Number.isNaN(selectedDate.getTime())) {
+
+    if (
+      !(selectedDate instanceof Date) ||
+      Number.isNaN(selectedDate.getTime())
+    ) {
       return visibleMeetings
     }
 
-    const selectedKey = dateKey(selectedDate)
-
     if (view === 'day') {
+      const selectedKey = dateKey(selectedDate)
+
       return visibleMeetings.filter(
         (meeting) => getMeetingDateKey(meeting) === selectedKey,
       )
     }
 
     if (view === 'week') {
-      const weekStart = new Date(
-        selectedDate.getFullYear(),
-        selectedDate.getMonth(),
-        selectedDate.getDate(),
-      )
-      weekStart.setDate(weekStart.getDate() - weekStart.getDay())
-      const weekEnd = new Date(weekStart)
-      weekEnd.setDate(weekStart.getDate() + 7)
+      const weekStart = startOfWeek(selectedDate)
+      const weekEnd = endOfWeek(selectedDate)
 
       return visibleMeetings.filter((meeting) => {
         const key = getMeetingDateKey(meeting)
         if (!key) return false
+
         const meetingDate = new Date(`${key}T12:00:00`)
+
         return (
           !Number.isNaN(meetingDate.getTime()) &&
           meetingDate >= weekStart &&
-          meetingDate < weekEnd
+          meetingDate <= weekEnd
         )
       })
     }
@@ -255,7 +315,9 @@ export default function CalendarPage() {
       return visibleMeetings.filter((meeting) => {
         const key = getMeetingDateKey(meeting)
         if (!key) return false
+
         const [year, month] = key.split('-').map(Number)
+
         return (
           year === selectedDate.getFullYear() &&
           month === selectedDate.getMonth() + 1
@@ -267,7 +329,14 @@ export default function CalendarPage() {
   }, [visibleMeetings, calendar.selectedDate, view])
 
   const openMeeting = (meeting) => {
-    if (meeting?.id) navigate(`/meetings/${meeting.id}`)
+    if (meeting?.id) {
+      navigate(`/meetings/${meeting.id}`)
+    }
+  }
+
+  const goToMonth = () => {
+    setSelectedMeetingId(null)
+    setView('month')
   }
 
   return (
@@ -311,6 +380,7 @@ export default function CalendarPage() {
         >
           {STATUS_TABS.map((tab) => {
             const active = filter === tab
+
             return (
               <Button
                 key={tab}
@@ -330,14 +400,16 @@ export default function CalendarPage() {
                   whiteSpace: 'nowrap',
                   bgcolor: active ? D.navy : '#fff',
                   color: active ? '#fff' : D.navy,
-                  '&:hover': { bgcolor: active ? D.navy : '#F5F8FD' },
+                  '&:hover': {
+                    bgcolor: active ? D.navy : '#F5F8FD',
+                  },
                   '&:focus-visible': {
                     outline: `2px solid ${D.navy}`,
                     outlineOffset: -4,
                   },
                 }}
               >
-                {tab} {counts[tab]}
+                {tab} {counts[tab] ?? 0}
               </Button>
             )
           })}
@@ -345,7 +417,11 @@ export default function CalendarPage() {
 
         <Box
           data-tour="calendar-date-navigation"
-          sx={{ width: '100%', minWidth: 0, '& > *': { minWidth: 0 } }}
+          sx={{
+            width: '100%',
+            minWidth: 0,
+            '& > *': { minWidth: 0 },
+          }}
         >
           <CalendarToolbar
             view={view}
@@ -398,30 +474,20 @@ export default function CalendarPage() {
         component="section"
         aria-label="Schedule"
         data-tour="calendar-schedule"
-        sx={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: 0.5 }}
+        sx={{
+          minWidth: 0,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 0.5,
+        }}
       >
-        <Box
+        <Typography
           sx={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: 1,
+            fontSize: '.75rem',
+            color: D.muted,
+            mb: 1.5,
           }}
         >
-          <Typography component="h2" sx={titleSx}>
-            Schedule
-          </Typography>
-          <Typography
-            aria-live="polite"
-            sx={{ fontSize: '.75rem', color: D.muted, flexShrink: 0 }}
-          >
-            {periodMeetings.length} meeting{periodMeetings.length === 1 ? '' : 's'}
-            {activeFilterCount > 0 &&
-              ` · ${activeFilterCount} filter${activeFilterCount === 1 ? '' : 's'}`}
-          </Typography>
-        </Box>
-
-        <Typography sx={{ fontSize: '.75rem', color: D.muted, mb: 1.5 }}>
           Select a date on the calendar to filter meetings for that day, week, or month.
         </Typography>
 
@@ -438,11 +504,20 @@ export default function CalendarPage() {
             minWidth: 0,
           }}
         >
-          <Box sx={{ minWidth: 0, order: { xs: 2, md: 1 } }}>
+          <Box
+            sx={{
+              minWidth: 0,
+              order: { xs: 2, md: 1 },
+            }}
+          >
             {periodMeetings.length === 0 ? (
               <Typography
                 role="status"
-                sx={{ fontSize: '.8125rem', color: D.muted, py: 2 }}
+                sx={{
+                  fontSize: '.8125rem',
+                  color: D.muted,
+                  py: 2,
+                }}
               >
                 No meetings match the selected date range and current filters.
               </Typography>
@@ -451,7 +526,9 @@ export default function CalendarPage() {
                 meetings={periodMeetings}
                 view={view}
                 selectedMeetingId={selectedMeetingId}
-                onSelectMeeting={(meeting) => setSelectedMeetingId(meeting.id)}
+                onSelectMeeting={(meeting) =>
+                  setSelectedMeetingId(meeting.id)
+                }
                 settings={settings}
                 onSettingsChange={onSettingsChange}
               />
@@ -470,12 +547,68 @@ export default function CalendarPage() {
               top: { md: 16 },
             }}
           >
+            <Box
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 1,
+                mb: 1.5,
+              }}
+            >
+              <Typography
+                component="h3"
+                sx={{
+                  fontSize: '1rem',
+                  fontWeight: 600,
+                  color: D.navy,
+                  overflowWrap: 'anywhere',
+                }}
+              >
+                {getCalendarHeading(
+                  selectedMeeting ? view : 'month',
+                  calendar.selectedDate,
+                )}
+              </Typography>
+
+              <Button
+                size="small"
+                variant="outlined"
+                onClick={goToMonth}
+                sx={{
+                  minHeight: 32,
+                  px: 1.25,
+                  borderRadius: '6px',
+                  borderColor: D.line,
+                  color: D.navy,
+                  fontSize: '.75rem',
+                  fontWeight: 500,
+                  textTransform: 'none',
+                  whiteSpace: 'nowrap',
+                  flexShrink: 0,
+                  '&:hover': {
+                    borderColor: D.navy,
+                    bgcolor: '#F5F8FD',
+                  },
+                  '&:focus-visible': {
+                    outline: `2px solid ${D.navy}`,
+                    outlineOffset: 2,
+                  },
+                }}
+              >
+                Go to Month
+              </Button>
+            </Box>
+
             {selectedMeeting && (
-              <SelectedMeetingCard meeting={selectedMeeting} onOpen={openMeeting} />
+              <SelectedMeetingCard
+                meeting={selectedMeeting}
+                onOpen={openMeeting}
+              />
             )}
 
-            <Box sx={{ minWidth: 0 }}>
-              {view === 'day' && (
+            <Box sx={{ minWidth: 0, width: '100%' }}>
+              {selectedMeeting && view === 'day' && (
                 <DayStrip
                   selectedDate={calendar.selectedDate}
                   meetings={visibleMeetings}
@@ -483,7 +616,7 @@ export default function CalendarPage() {
                 />
               )}
 
-              {view === 'week' && (
+              {selectedMeeting && view === 'week' && (
                 <WeekColumns
                   selectedDate={calendar.selectedDate}
                   meetings={visibleMeetings}
@@ -491,7 +624,7 @@ export default function CalendarPage() {
                 />
               )}
 
-              {view === 'month' && (
+              {(view === 'month' || !selectedMeeting) && (
                 <MonthGrid
                   selectedDate={calendar.selectedDate}
                   meetings={visibleMeetings}

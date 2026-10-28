@@ -90,13 +90,17 @@ export default function Dashboard() {
   const recentRecordings = useMemo(() => {
     return [...sortedMeetings]
       .filter((meeting) => {
-        const status = String(meeting.status ?? meeting.type ?? '').toLowerCase()
+        const status = String(
+          meeting.status ?? meeting.type ?? '',
+        ).toLowerCase()
+
         const completed =
           status === 'done' ||
           status === 'completed' ||
           meeting._end < now
 
         const meetAI = meeting.meetAI ?? {}
+
         const hasTranscript =
           Boolean(meeting.transcript) ||
           Boolean(meetAI.transcript) ||
@@ -161,6 +165,7 @@ export default function Dashboard() {
               meetingSettings={meetingSettings}
               onSettingsChange={handleSettingsChange}
               onSchedule={() => outletContext.openCreate?.()}
+              onInvite={() => outletContext.openInstant?.()}
             />
           </Box>
 
