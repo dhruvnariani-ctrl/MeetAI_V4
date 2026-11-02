@@ -91,7 +91,7 @@ export default function TaskListCard({
           </EmptyPanel>
         </Box>
       ) : (
-        <Box sx={{ px: { xs: 1.25, sm: 2 }, pt: 1.5, pb: 0.5 }}>
+        <Box sx={{ px: { xs: 1.25, sm: 2, lg:0 }, pt: 1.5, pb: 0.5 }}>
           <Box component="ul" sx={{ m: 0, p: 0, listStyle: 'none' }}>
             {pager.pageItems.map((task) => (
               <TaskRow

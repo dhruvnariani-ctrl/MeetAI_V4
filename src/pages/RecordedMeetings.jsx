@@ -1,5 +1,7 @@
+
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
 import ButtonBase from '@mui/material/ButtonBase'
@@ -34,12 +36,6 @@ import { DATE_FILTERS } from '../utils/dateFilters'
 import { filterUserMeetings } from '../utils/meetingAccess'
 
 const PAGE_SIZE = 8
-
-const ROW = {
-  display: 'grid',
-  gridTemplateColumns: '56px minmax(0, 1fr)',
-  columnGap: { xs: 1.5, sm: 3 },
-}
 
 const shortDate = (value) =>
   new Date(value).toLocaleDateString('en-GB', {
@@ -155,13 +151,13 @@ export default function RecordedMeetings() {
         color: D.text,
       }}
     >
-      {/* Compact archive and selected meeting view */}
+      {/* Archive list + selected meeting view */}
       <Box
         sx={{
           display: 'grid',
           gridTemplateColumns: {
             xs: 'minmax(0, 1fr)',
-            lg: 'minmax(0, 1.8fr) minmax(280px, 1fr)',
+            lg: 'minmax(0, 1.8fr) minmax(340px, 1fr)',
           },
           columnGap: 2,
           rowGap: 1.5,
@@ -179,48 +175,49 @@ export default function RecordedMeetings() {
           sx={{ minWidth: 0 }}
         >
           <Box
-  sx={{
-    display: 'flex',
-    alignItems: { xs: 'flex-start', lg: 'center' },
-    justifyContent: 'space-between',
-    flexWrap: { xs: 'wrap', lg: 'nowrap' },
-    gap: 1,
-    mb: 1.25,
-  }}
->
-  <Typography
-    component="h2"
-    sx={{
-      ...titleSx,
-      flexShrink: 0,
-    }}
-  >
-    Meeting archive ({recorded.length})
-  </Typography>
+            sx={{
+              display: 'flex',
+              alignItems: { xs: 'flex-start', lg: 'center' },
+              justifyContent: 'space-between',
+              flexWrap: { xs: 'wrap', lg: 'nowrap' },
+              gap: 1,
+              mb: 1.25,
+            }}
+          >
+            <Typography
+              component="h2"
+              sx={{
+                ...titleSx,
+                flexShrink: 0,
+              }}
+            >
+              Meeting archive ({recorded.length})
+            </Typography>
 
-  <Box
-    sx={{
-      minWidth: 0,
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: { xs: 'flex-start', lg: 'flex-end' },
-      flexWrap: { xs: 'wrap', lg: 'nowrap' },
-      gap: 1,
-      '& > *': {
-        flexShrink: 0,
-      },
-    }}
-  >
-    <RecordedFilters
-      dateFilters={DATE_FILTERS}
-      dateFilter={dateFilter}
-      onDateFilterChange={setDateFilter}
-      sortOptions={RECORDED_SORT_OPTIONS}
-      sortBy={sortBy}
-      onSortChange={setSortBy}
-    />
-  </Box>
-</Box>
+            <Box
+              sx={{
+                minWidth: 0,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: { xs: 'flex-start', lg: 'flex-end' },
+                flexWrap: { xs: 'wrap', lg: 'nowrap' },
+                gap: 1,
+                '& > *': {
+                  flexShrink: 0,
+                },
+              }}
+            >
+              <RecordedFilters
+                dateFilters={DATE_FILTERS}
+                dateFilter={dateFilter}
+                onDateFilterChange={setDateFilter}
+                sortOptions={RECORDED_SORT_OPTIONS}
+                sortBy={sortBy}
+                onSortChange={setSortBy}
+              />
+            </Box>
+          </Box>
+
           <Box
             sx={{
               minWidth: 0,
@@ -229,151 +226,166 @@ export default function RecordedMeetings() {
               pr: { lg: 0.5 },
             }}
           >
-          {recorded.length === 0 ? (
-            <EmptyPanel
-              title="No recorded meetings"
-              minHeight={140}
-              action={
-                dateFilter !== 'All' || sortBy !== 'Newest' ? (
-                  <Button onClick={clearFilters}>
-                    Clear filters
-                  </Button>
-                ) : undefined
-              }
-            >
-              {dateFilter !== 'All'
-                ? 'No recorded meetings match the selected date filter.'
-                : 'Meetings that MeetAI records will appear here.'}
-            </EmptyPanel>
-          ) : (
-            <>
-              <Box
-                component="ul"
-                sx={{
-                  m: 0,
-                  p: 0,
-                  listStyle: 'none',
-                }}
+            {recorded.length === 0 ? (
+              <EmptyPanel
+                title="No recorded meetings"
+                minHeight={140}
+                action={
+                  dateFilter !== 'All' || sortBy !== 'Newest' ? (
+                    <Button onClick={clearFilters}>
+                      Clear filters
+                    </Button>
+                  ) : undefined
+                }
               >
-                {pager.pageItems.map((meeting) => {
-                  const active = meeting.id === selected?.id
-                  const ready = Boolean(meeting.recording?.available)
+                {dateFilter !== 'All'
+                  ? 'No recorded meetings match the selected date filter.'
+                  : 'Meetings that MeetAI records will appear here.'}
+              </EmptyPanel>
+            ) : (
+              <>
+                <Box
+                  component="ul"
+                  sx={{
+                    m: 0,
+                    p: 0,
+                    listStyle: 'none',
+                  }}
+                >
+                  {pager.pageItems.map((meeting) => {
+                    const active = meeting.id === selected?.id
+                    const ready = Boolean(meeting.recording?.available)
 
-                  return (
-                    <Box
-                      component="li"
-                      key={meeting.id}
-                      sx={{
-                        ...ROW,
-                        mt: '-1px',
-                      }}
-                    >
-                      {/* Meeting date and time */}
-                      <Box sx={{ pt: 0.75 }}>
-                        <Typography
-                          sx={{
-                            fontSize: '.75rem',
-                            fontWeight: 600,
-                            color: D.navy,
-                          }}
-                        >
-                          {shortDate(meeting.start)}
-                        </Typography>
-
-                        <Typography
-                          sx={{
-                            fontSize: '.6875rem',
-                            color: D.muted,
-                          }}
-                        >
-                          {time24(meeting.start)}
-                        </Typography>
-                      </Box>
-
-                      {/* Meeting selection */}
-                      <ButtonBase
-                        aria-pressed={active}
-                        onClick={() => setSelectedId(meeting.id)}
-                        sx={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          gap: 1.5,
-                          width: '100%',
-                          minWidth: 0,
-                          px: 1.25,
-                          py: 0.85,
-                          textAlign: 'left',
-                          bgcolor: active ? '#fff' : '#F7F9FE',
-                          border: `1px solid ${D.line}`,
-                          borderLeft: `3px solid ${
-                            active ? D.navy : D.line
-                          }`,
-                          '&:hover': {
-                            bgcolor: '#fff',
-                          },
-                          '&:focus-visible': {
-                            outline: `2px solid ${D.navy}`,
-                            outlineOffset: -2,
-                          },
-                        }}
+                    return (
+                      <Box
+                        component="li"
+                        key={meeting.id}
+                        sx={{ mt: '-1px' }}
                       >
-                        <Box sx={{ minWidth: 0, flex: 1 }}>
-                          <Typography
-                            noWrap
-                            sx={{
-                              fontSize: '.875rem',
-                              fontWeight: active ? 600 : 500,
-                              color: D.navy,
-                            }}
-                          >
-                            {meeting.title}
-                          </Typography>
-
-                          <Typography
-                            sx={{
-                              mt: 0.25,
-                              fontSize: '.6875rem',
-                              color: D.muted,
-                            }}
-                          >
-                            {meeting.platform} · {countOf(meeting)} participant
-                            {countOf(meeting) === 1 ? '' : 's'} ·{' '}
-                            {durationOf(meeting)}
-                          </Typography>
-                        </Box>
-
-                        <Typography
+                        <ButtonBase
+                          aria-pressed={active}
+                          onClick={() => setSelectedId(meeting.id)}
                           sx={{
-                            flexShrink: 0,
-                            fontSize: '.6875rem',
-                            fontWeight: 600,
-                            color: ready ? D.greenText : D.muted,
+                            display: 'grid',
+                            gridTemplateColumns: {
+                              xs: 'minmax(0, 1fr)',
+                              sm: '125px minmax(0, 1fr) auto',
+                            },
+                            alignItems: 'center',
+                            columnGap: 2,
+                            rowGap: 0.75,
+                            width: '100%',
+                            minWidth: 0,
+                            px: 1.5,
+                            py: 1.25,
+                            textAlign: 'left',
+                            bgcolor: active ? '#fff' : '#F7F9FE',
+                            border: `1px solid ${D.line}`,
+                            borderLeft: `3px solid ${
+                              active ? D.navy : D.line
+                            }`,
+                            '&:hover': {
+                              bgcolor: '#fff',
+                            },
+                            '&:focus-visible': {
+                              outline: `2px solid ${D.navy}`,
+                              outlineOffset: -2,
+                            },
                           }}
                         >
-                          {ready ? 'Recording ready ✓' : 'No recording'}
-                        </Typography>
-                      </ButtonBase>
-                    </Box>
-                  )
-                })}
-              </Box>
+                          {/* Date and time */}
+                          <Typography
+                            sx={{
+                              fontSize: '.75rem',
+                              fontWeight: 600,
+                              color: D.muted,
+                              lineHeight: 1.5,
+                            }}
+                          >
+                            {shortDate(meeting.start)}
+                            <Box
+                              component="span"
+                              sx={{
+                                display: {
+                                  xs: 'inline',
+                                  sm: 'block',
+                                },
+                              }}
+                            >
+                              {` ${time24(meeting.start)}–${time24(meeting.end)}`}
+                            </Box>
+                          </Typography>
 
-              <PaginationBar
-                pager={pager}
-                label="meetings"
-                sx={{
-                  px: 0,
-                  borderColor: D.line,
-                  '& .MuiPaginationItem-root.Mui-selected, & .MuiPaginationItem-root.Mui-selected:hover':
-                    {
-                      bgcolor: D.navy,
-                      color: '#fff',
-                    },
-                }}
-              />
-            </>
-          )}
+                          {/* Meeting details */}
+                          <Box
+                            sx={{
+                              minWidth: 0,
+                              width: '100%',
+                            }}
+                          >
+                            <Typography
+                              noWrap
+                              sx={{
+                                fontSize: '.875rem',
+                                fontWeight: active ? 600 : 500,
+                                color: D.navy,
+                              }}
+                            >
+                              {meeting.title}
+                            </Typography>
+
+                            <Typography
+                              noWrap
+                              sx={{
+                                mt: 0.35,
+                                fontSize: '.75rem',
+                                color: D.muted,
+                              }}
+                            >
+                              {meeting.platform} · {countOf(meeting)} participant
+                              {countOf(meeting) === 1 ? '' : 's'} ·{' '}
+                              {durationOf(meeting)}
+                            </Typography>
+                          </Box>
+
+                          {/* Recording status */}
+                          <Typography
+                            sx={{
+                              justifySelf: {
+                                xs: 'start',
+                                sm: 'end',
+                              },
+                              whiteSpace: 'nowrap',
+                              fontSize: '.75rem',
+                              fontWeight: 600,
+                              color: ready ? D.greenText : D.muted,
+                            }}
+                          >
+                            {ready
+                              ? 'Recording ready ✓'
+                              : 'No recording'}
+                          </Typography>
+                        </ButtonBase>
+                      </Box>
+                    )
+                  })}
+                </Box>
+
+                <PaginationBar
+                  pager={pager}
+                  label="meetings"
+                  sx={{
+                    px: 0,
+                    borderColor: D.line,
+                    '& .MuiPaginationItem-root.Mui-selected, & .MuiPaginationItem-root.Mui-selected:hover':
+                      {
+                        bgcolor: D.navy,
+                        color: '#fff',
+                      },
+                  }}
+                />
+              </>
+            )}
           </Box>
         </Box>
 

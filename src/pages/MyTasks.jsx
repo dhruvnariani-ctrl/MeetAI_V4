@@ -1,7 +1,9 @@
+
 import { useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 import Box from '@mui/material/Box'
+import Divider from '@mui/material/Divider'
 
 import usePageTitle from '../hooks/usePageTitle'
 import useCurrentUser from '../hooks/useCurrentUser'
@@ -38,27 +40,47 @@ export default function MyTasks() {
     [tasks, filter, dueDate, sortBy],
   )
 
-  const { filterCounts, highPriority, dueSoon, todayFocus, progress } = useTaskStats(tasks)
+  const {
+    filterCounts,
+    highPriority,
+    dueSoon,
+    todayFocus,
+    progress,
+  } = useTaskStats(tasks)
 
   const handleToggle = (taskId) => {
-    setExpandedTaskId((current) => (current === taskId ? null : taskId))
+    setExpandedTaskId((current) =>
+      current === taskId ? null : taskId,
+    )
   }
 
   const handleMarkDone = (taskId) => {
     const task = tasks.find((item) => item.id === taskId)
 
-    if (!task?.meetingId || normalizeTaskStatus(task.status) === 'Done') return
+    if (
+      !task?.meetingId ||
+      normalizeTaskStatus(task.status) === 'Done'
+    ) {
+      return
+    }
+
     setTaskToConfirm(task)
   }
 
   const handleConfirmMarkDone = () => {
     if (!taskToConfirm?.meetingId) return
 
-    updateMeetingActionItemStatus(taskToConfirm.meetingId, taskToConfirm.id, 'Done')
+    updateMeetingActionItemStatus(
+      taskToConfirm.meetingId,
+      taskToConfirm.id,
+      'Done',
+    )
 
     setTasks((current) =>
       current.map((item) =>
-        item.id === taskToConfirm.id ? { ...item, status: 'Done', completed: true } : item,
+        item.id === taskToConfirm.id
+          ? { ...item, status: 'Done', completed: true }
+          : item,
       ),
     )
 
@@ -66,17 +88,25 @@ export default function MyTasks() {
   }
 
   const handleOpenMeeting = (task) => {
-    if (task.meetingId) navigate(`/meetings/${task.meetingId}`)
+    if (task.meetingId) {
+      navigate(`/meetings/${task.meetingId}`)
+    }
   }
 
-  const showOpenTasks = ({ dueDate: nextDueDate, sortBy: nextSortBy }) => {
+  const showOpenTasks = ({
+    dueDate: nextDueDate,
+    sortBy: nextSortBy,
+  }) => {
     setFilter('Open')
     setDueDate(nextDueDate)
     setSortBy(nextSortBy)
     setExpandedTaskId(null)
 
     requestAnimationFrame(() => {
-      listRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      listRef.current?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start',
+      })
     })
   }
 
@@ -87,7 +117,13 @@ export default function MyTasks() {
 
   return (
     <>
-      <Box sx={{ width: '100%', minWidth: 0, color: D.text }}>
+      <Box
+        sx={{
+          width: '100%',
+          minWidth: 0,
+          color: D.text,
+        }}
+      >
         <Box
           sx={{
             display: 'grid',
@@ -96,12 +132,19 @@ export default function MyTasks() {
               lg: 'minmax(0, 1.8fr) minmax(280px, 1fr)',
             },
             columnGap: { xs: 0, lg: 2.5 },
-            rowGap: { xs: 2, lg: 2.5 },
-            alignItems: 'start',
+            rowGap: 2,
+            alignItems: 'stretch',
             pt: 0,
           }}
         >
-          <Box ref={listRef} sx={{ minWidth: 0, scrollMarginTop: 16 }}>
+          {/* Left: Task list */}
+          <Box
+            ref={listRef}
+            sx={{
+              minWidth: 0,
+              scrollMarginTop: 16,
+            }}
+          >
             <TaskListCard
               tasks={filteredTasks}
               expandedTaskId={expandedTaskId}
@@ -120,21 +163,61 @@ export default function MyTasks() {
             />
           </Box>
 
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
-            <TaskSidePanels
-              focusTasks={todayFocus}
-              filterCounts={filterCounts}
-              progress={progress}
-              highPriority={highPriority}
-              dueSoon={dueSoon}
-              onMarkDone={handleMarkDone}
-              onViewToday={() => showOpenTasks({ dueDate: 'today', sortBy: 'Priority' })}
-              onViewAll={() => showOpenTasks({ dueDate: 'default', sortBy: 'Due date' })}
+          {/* Right: Divider + side panels */}
+          <Box
+            sx={{
+              minWidth: 0,
+              display: { xs: 'block', lg: 'flex' },
+              alignItems: 'stretch',
+              gap: { lg: 2.5 },
+            }}
+          >
+            {/* Vertical divider */}
+            <Divider
+              orientation="vertical"
+              flexItem
+              sx={{
+                display: { xs: 'none', lg: 'block' },
+                borderColor: D.line,
+              }}
             />
+
+            {/* Side panels */}
+            <Box
+              sx={{
+                minWidth: 0,
+                flex: 1,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 2,
+              }}
+            >
+              <TaskSidePanels
+                focusTasks={todayFocus}
+                filterCounts={filterCounts}
+                progress={progress}
+                highPriority={highPriority}
+                dueSoon={dueSoon}
+                onMarkDone={handleMarkDone}
+                onViewToday={() =>
+                  showOpenTasks({
+                    dueDate: 'today',
+                    sortBy: 'Priority',
+                  })
+                }
+                onViewAll={() =>
+                  showOpenTasks({
+                    dueDate: 'default',
+                    sortBy: 'Due date',
+                  })
+                }
+              />
+            </Box>
           </Box>
         </Box>
       </Box>
 
+      {/* Confirm mark done dialog */}
       <ConfirmMarkDoneDialog
         open={Boolean(taskToConfirm)}
         taskTitle={taskToConfirm?.title ?? ''}

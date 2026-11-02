@@ -45,8 +45,7 @@ const focusRing = {
   outlineOffset: 2,
 }
 
-const WEEKDAYS = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT']
-
+const WEEKDAYS = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN']
 const countText = (count) =>
   count ? `${count} meeting${count === 1 ? '' : 's'}` : 'Free'
 
@@ -57,7 +56,10 @@ const startOfSundayWeek = (date) => {
     date.getMonth(),
     date.getDate(),
   )
-  start.setDate(start.getDate() - start.getDay())
+
+  const daysSinceMonday = (start.getDay() + 6) % 7
+  start.setDate(start.getDate() - daysSinceMonday)
+
   return start
 }
 
@@ -75,19 +77,25 @@ const sameDay = (first, second) =>
   dateKey(first) === dateKey(second)
 
 /* ---------- Shared screenshot-style calendar grid ---------- */
+
 function CalendarDateGrid({
   days,
   selectedDate,
   meetings,
   onOpenDay,
   showMonth = false,
+  view = 'day',
 }) {
   const selectedKey = dateKey(selectedDate)
   const todayKey = dateKey(new Date())
 
+  const weekStart = startOfSundayWeek(selectedDate)
+  const weekEnd = new Date(weekStart)
+  weekEnd.setDate(weekStart.getDate() + 6)
+
   const meetingsByDate = meetings.reduce((map, meeting) => {
-    const key = meeting.date
-    map[key] = (map[key] ?? 0) + 1
+    const key = meeting.date || meeting.start?.slice(0, 10)
+    if (key) map[key] = (map[key] ?? 0) + 1
     return map
   }, {})
 
@@ -95,140 +103,151 @@ function CalendarDateGrid({
     <Box
       data-tour="calendar-days"
       role="grid"
-      aria-label={showMonth ? 'Month calendar' : 'Week calendar'}
+      aria-label="Month calendar"
       sx={{
         width: '100%',
-        overflowX: 'auto',
+        minWidth: 0,
+        overflow: 'hidden',
         bgcolor: '#FFFFFF',
       }}
     >
-      <Box sx={{ minWidth: 420 }}>
-        <Box
-          role="row"
-          sx={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(7, minmax(0, 1fr))',
-          }}
-        >
-          {WEEKDAYS.map((name) => (
-            <Typography
-              key={name}
-              role="columnheader"
+      <Box
+        role="row"
+        sx={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(7, minmax(0, 1fr))',
+        }}
+      >
+        {WEEKDAYS.map((name) => (
+          <Typography
+            key={name}
+            role="columnheader"
+            sx={{
+              textAlign: 'center',
+              py: 0.5,
+              fontSize: '.625rem',
+              lineHeight: 1.4,
+              fontWeight: 600,
+              color: D.muted,
+            }}
+          >
+            {name}
+          </Typography>
+        ))}
+      </Box>
+
+      <Box
+        role="rowgroup"
+        sx={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(7, minmax(0, 1fr))',
+          gridAutoRows: { xs: 38, sm: 44, md: 48 },
+        }}
+      >
+        {days.map((day) => {
+          const key = dateKey(day)
+          const inMonth =
+            day.getMonth() === selectedDate.getMonth() &&
+            day.getFullYear() === selectedDate.getFullYear()
+
+          const selected = key === selectedKey
+          const today = key === todayKey
+          const count = meetingsByDate[key] ?? 0
+          const weekend = day.getDay() === 0 || day.getDay() === 6
+
+          const inWeek = day >= weekStart && day <= weekEnd
+
+          const highlighted =
+            view === 'day'
+              ? selected
+              : view === 'week'
+                ? inWeek
+                : inMonth
+
+          return (
+            <Box
+              key={key}
+              role="presentation"
               sx={{
-                textAlign: 'center',
-                py: showMonth ? { xs: 0.4, sm: 0.55 } : { xs: 1.25, sm: 1.75 },
-                fontSize: { xs: '.625rem', sm: '.6875rem' },
-                lineHeight: 1.4,
-                fontWeight: 500,
-                color: '#111111',
+                minWidth: 0,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderBottom: '1px solid #F0F0F0',
+                bgcolor: highlighted ? '#DCE8F8' : '#FFFFFF',
+                '&:last-child': {
+                  borderBottom: '1px solid #F0F0F0',
+                },
               }}
             >
-              {name}
-            </Typography>
-          ))}
-        </Box>
-
-        <Box
-          role="rowgroup"
-          sx={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(7, minmax(0, 1fr))',
-            gridAutoRows: showMonth
-              ? { xs: 42, sm: 52, md: 58 }
-              : { xs: 78, sm: 104 },
-          }}
-        >
-          {days.map((day) => {
-            const key = dateKey(day)
-            const inMonth =
-              day.getMonth() === selectedDate.getMonth() &&
-              day.getFullYear() === selectedDate.getFullYear()
-
-            const selected = key === selectedKey
-            const today = key === todayKey
-            const count = meetingsByDate[key] ?? 0
-            const weekend = day.getDay() === 0 || day.getDay() === 6
-
-            return (
-              <Box
-                key={key}
-                role="presentation"
+              <ButtonBase
+                role="gridcell"
+                onClick={() => onOpenDay(day)}
+                aria-pressed={selected}
+                aria-current={today ? 'date' : undefined}
+                aria-label={`${longDate.format(day)}, ${countText(count)}`}
                 sx={{
+                  position: 'relative',
                   display: 'flex',
-                  alignItems: 'flex-start',
+                  flexDirection: 'column',
+                  alignItems: 'center',
                   justifyContent: 'center',
-                  pt: showMonth ? { xs: 0.2, sm: 0.35 } : { xs: 0.75, sm: 1.25 },
-                  borderBottom: showMonth
-                    ? '1px solid #F0F0F0'
-                    : 'none',
-                  bgcolor: '#FFFFFF',
-                  minWidth: 0,
-                }}
-              >
-                <ButtonBase
-                  role="gridcell"
-                  onClick={() => onOpenDay(day)}
-                  aria-pressed={selected}
-                  aria-current={today ? 'date' : undefined}
-                  aria-label={`${longDate.format(day)}, ${countText(count)}`}
-                  sx={{
-                    position: 'relative',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    width: showMonth ? { xs: 28, sm: 36, md: 40 } : { xs: 42, sm: 60 },
-                    height: showMonth ? { xs: 30, sm: 38, md: 42 } : { xs: 44, sm: 64 },
-                    border: selected
-                      ? '1px solid #0064B5'
-                      : '1px solid transparent',
-                    borderRadius: showMonth ? '8px' : '10px',
-                    bgcolor: '#FFFFFF',
-                    color: !inMonth
-                      ? '#C7C7C7'
+                  width: { xs: 30, sm: 36, md: 40 },
+                  height: { xs: 30, sm: 36, md: 40 },
+                  borderRadius: '8px',
+                  border: today && !selected
+                    ? `1px solid ${D.navy}`
+                    : '1px solid transparent',
+                  bgcolor: selected ? D.navy : 'transparent',
+                  color: selected
+                    ? '#FFFFFF'
+                    : !inMonth
+                      ? '#AEB8C7'
                       : weekend
                         ? '#707070'
-                        : '#080808',
-                    '&:hover': {
-                      bgcolor: '#F5F8FC',
-                    },
-                    '&:focus-visible': focusRing,
+                        : D.navy,
+                  '&:hover': {
+                    bgcolor: selected ? D.navy : '#C8D9F1',
+                  },
+                  '&:focus-visible': {
+                    outline: `2px solid ${D.navy}`,
+                    outlineOffset: 1,
+                  },
+                }}
+              >
+                <Typography
+                  sx={{
+                    fontSize: { xs: '.6875rem', sm: '.75rem' },
+                    lineHeight: 1.2,
+                    fontWeight: selected || today ? 700 : 500,
+                    color: 'inherit',
                   }}
                 >
-                  <Typography
-                    sx={{
-                      fontSize: showMonth ? { xs: '.6875rem', sm: '.75rem', md: '.8125rem' } : { xs: '.8125rem', sm: '.875rem' },
-                      lineHeight: 1.2,
-                      fontWeight: 500,
-                      color: 'inherit',
-                    }}
-                  >
-                    {day.getDate()}
-                  </Typography>
+                  {day.getDate()}
+                </Typography>
 
-                  {count > 0 && (
-                    <Box
-                      aria-hidden="true"
-                      sx={{
-                        position: 'absolute',
-                        top: showMonth ? { xs: 2, sm: 3 } : { xs: 1, sm: 3 },
-                        right: showMonth ? { xs: 2, sm: 3 } : { xs: 1, sm: 3 },
-                        width: showMonth ? 5 : 8,
-                        height: showMonth ? 5 : 8,
-                        borderRadius: '50%',
-                        bgcolor: '#CE7000',
-                      }}
-                    />
-                  )}
-                </ButtonBase>
-              </Box>
-            )
-          })}
-        </Box>
+                {count > 0 && (
+                  <Box
+                    aria-hidden="true"
+                    sx={{
+                      position: 'absolute',
+                      bottom: 3,
+                      width: 4,
+                      height: 4,
+                      borderRadius: '50%',
+                      bgcolor: selected ? '#FFFFFF' : '#CE7000',
+                    }}
+                  />
+                )}
+              </ButtonBase>
+            </Box>
+          )
+        })}
       </Box>
     </Box>
   )
 }
+
 
 /* ---------- Seven-day strip ---------- */
 export function DayStrip({ selectedDate, meetings, onOpenDay }) {
@@ -628,10 +647,12 @@ export function WeekColumns({
 }
 
 /* ---------- Month view: screenshot-style calendar ---------- */
+
 export function MonthGrid({
   selectedDate,
   meetings,
   onOpenDay,
+  view = 'month',
 }) {
   const first = new Date(
     selectedDate.getFullYear(),
@@ -641,15 +662,7 @@ export function MonthGrid({
 
   const gridStart = startOfSundayWeek(first)
 
-  const last = new Date(
-    selectedDate.getFullYear(),
-    selectedDate.getMonth() + 1,
-    0,
-  )
-
-  const cellCount = Math.ceil((first.getDay() + last.getDate()) / 7) * 7
-
-  const days = Array.from({ length: cellCount }, (_, index) => {
+  const days = Array.from({ length: 42 }, (_, index) => {
     const day = new Date(gridStart)
     day.setDate(gridStart.getDate() + index)
     return day
@@ -658,9 +671,11 @@ export function MonthGrid({
   return (
     <Box
       sx={{
+        width: '100%',
+        minWidth: 0,
         overflow: 'hidden',
         border: '1px solid #EEEEEE',
-        borderRadius: '0 0 24px 24px',
+        borderRadius: '8px',
         bgcolor: '#FFFFFF',
       }}
     >
@@ -670,7 +685,9 @@ export function MonthGrid({
         meetings={meetings}
         onOpenDay={onOpenDay}
         showMonth
+        view={view}
       />
     </Box>
   )
 }
+

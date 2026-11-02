@@ -5,14 +5,11 @@ import Button from '@mui/material/Button'
 import Checkbox from '@mui/material/Checkbox'
 import FormControlLabel from '@mui/material/FormControlLabel'
 import IconButton from '@mui/material/IconButton'
-import Menu from '@mui/material/Menu'
-import MenuItem from '@mui/material/MenuItem'
 import Popover from '@mui/material/Popover'
 import Typography from '@mui/material/Typography'
 
 import ChevronLeftRoundedIcon from '@mui/icons-material/ChevronLeftRounded'
 import ChevronRightRoundedIcon from '@mui/icons-material/ChevronRightRounded'
-import ExpandMoreRoundedIcon from '@mui/icons-material/ExpandMoreRounded'
 import FilterListRoundedIcon from '@mui/icons-material/FilterListRounded'
 
 import { D } from '../dashboard/dashTheme'
@@ -34,7 +31,10 @@ const controlSx = {
   fontWeight: 500,
   textTransform: 'none',
   '&:hover': { bgcolor: '#F5F8FD', borderColor: D.navy },
-  '&:focus-visible': { outline: `2px solid ${D.navy}`, outlineOffset: 2 },
+  '&:focus-visible': {
+    outline: `2px solid ${D.navy}`,
+    outlineOffset: 2,
+  },
 }
 
 export default function CalendarToolbar({
@@ -56,11 +56,6 @@ export default function CalendarToolbar({
   const [dateAnchor, setDateAnchor] = useState(null)
   const [filterAnchor, setFilterAnchor] = useState(null)
 
-  const pick = (action) => () => {
-    setDateAnchor(null)
-    action?.()
-  }
-
   const togglePlatform = (platform) =>
     onFiltersChange({
       ...filters,
@@ -70,10 +65,36 @@ export default function CalendarToolbar({
     })
 
   return (
-    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1, flexWrap: 'wrap' }}>
+    <Box
+      sx={{
+        display: 'flex',
+        alignItems: { xs: 'stretch', sm: 'center' },
+        justifyContent: 'space-between',
+        gap: { xs: 1.25, sm: 1 },
+        flexDirection: { xs: 'column', sm: 'row' },
+        width: '100%',
+      }}
+    >
       {/* Date navigation */}
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
-        <IconButton aria-label={`Previous ${view}`} onClick={onPrevious} sx={{ ...controlSx, width: 38, p: 0 }}>
+      <Box
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 0.75,
+          width: { xs: '100%', sm: 'auto' },
+        }}
+      >
+        <IconButton
+          aria-label={`Previous ${view}`}
+          onClick={onPrevious}
+          sx={{
+            ...controlSx,
+            width: { xs: 42, sm: 38 },
+            height: 38,
+            p: 0,
+            flexShrink: 0,
+          }}
+        >
           <ChevronLeftRoundedIcon />
         </IconButton>
 
@@ -82,23 +103,53 @@ export default function CalendarToolbar({
           aria-haspopup="menu"
           aria-expanded={Boolean(dateAnchor)}
           onClick={(event) => setDateAnchor(event.currentTarget)}
-          sx={{ ...controlSx, minWidth: 150 }}
+          sx={{
+            ...controlSx,
+            flex: 1,
+            minWidth: 150,
+            whiteSpace: 'nowrap',
+          }}
         >
           {label}
         </Button>
 
-        <IconButton aria-label={`Next ${view}`} onClick={onNext} sx={{ ...controlSx, width: 38, p: 0 }}>
+        <IconButton
+          aria-label={`Next ${view}`}
+          onClick={onNext}
+          sx={{
+            ...controlSx,
+            width: { xs: 42, sm: 38 },
+            height: 38,
+            p: 0,
+            flexShrink: 0,
+          }}
+        >
           <ChevronRightRoundedIcon />
         </IconButton>
       </Box>
 
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+      {/* View controls and filters */}
+      <Box
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: { xs: 'flex-end', sm: 'flex-start' },
+          gap: 1,
+          width: { xs: '100%', sm: 'auto' },
+        }}
+      >
         {/* Day / Week / Month */}
         <Box
           role="group"
           aria-label="Calendar view"
           data-tour="calendar-view"
-          sx={{ display: 'flex', border: `1px solid ${D.line}`, borderRadius: '6px', overflow: 'hidden', bgcolor: '#fff' }}
+          sx={{
+            display: 'flex',
+            border: `1px solid ${D.line}`,
+            borderRadius: '6px',
+            overflow: 'hidden',
+            bgcolor: '#fff',
+          }}
         >
           {VIEWS.map(([key, text]) => (
             <Button
@@ -107,15 +158,20 @@ export default function CalendarToolbar({
               onClick={() => onViewChange(key)}
               sx={{
                 minHeight: 36,
-                px: 2,
+                px: { xs: 1.5, sm: 2 },
                 borderRadius: 0,
                 fontSize: '.8125rem',
                 fontWeight: view === key ? 600 : 500,
                 textTransform: 'none',
                 bgcolor: view === key ? D.navy : 'transparent',
                 color: view === key ? '#fff' : D.navy,
-                '&:hover': { bgcolor: view === key ? D.navy : '#F5F8FD' },
-                '&:focus-visible': { outline: `2px solid ${D.navy}`, outlineOffset: -4 },
+                '&:hover': {
+                  bgcolor: view === key ? D.navy : '#F5F8FD',
+                },
+                '&:focus-visible': {
+                  outline: `2px solid ${D.navy}`,
+                  outlineOffset: -4,
+                },
               }}
             >
               {text}
@@ -129,7 +185,11 @@ export default function CalendarToolbar({
           aria-haspopup="dialog"
           startIcon={<FilterListRoundedIcon />}
           onClick={(event) => setFilterAnchor(event.currentTarget)}
-          sx={controlSx}
+          sx={{
+            ...controlSx,
+            flexShrink: 0,
+            px: { xs: 1.25, sm: 1.5 },
+          }}
         >
           Filters{activeFilterCount > 0 ? ` · ${activeFilterCount}` : ''}
         </Button>
@@ -138,13 +198,32 @@ export default function CalendarToolbar({
           open={Boolean(filterAnchor)}
           anchorEl={filterAnchor}
           onClose={() => setFilterAnchor(null)}
-          anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-          transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+          anchorOrigin={{
+            vertical: 'bottom',
+            horizontal: 'right',
+          }}
+          transformOrigin={{
+            vertical: 'top',
+            horizontal: 'right',
+          }}
         >
-          <Box sx={{ p: 2, minWidth: 240 }} role="dialog" aria-label="Meeting filters">
-            <Typography sx={{ fontSize: '.6875rem', fontWeight: 600, letterSpacing: '.07em', textTransform: 'uppercase', color: D.muted }}>
+          <Box
+            sx={{ p: 2, minWidth: 240 }}
+            role="dialog"
+            aria-label="Meeting filters"
+          >
+            <Typography
+              sx={{
+                fontSize: '.6875rem',
+                fontWeight: 600,
+                letterSpacing: '.07em',
+                textTransform: 'uppercase',
+                color: D.muted,
+              }}
+            >
               Platform
             </Typography>
+
             <Box sx={{ display: 'flex', flexDirection: 'column', mb: 1 }}>
               {platforms.map((platform) => (
                 <FormControlLabel
@@ -155,16 +234,28 @@ export default function CalendarToolbar({
                       size="small"
                       checked={filters.platforms.includes(platform)}
                       onChange={() => togglePlatform(platform)}
-                      sx={{ color: D.navy, '&.Mui-checked': { color: D.navy } }}
+                      sx={{
+                        color: D.navy,
+                        '&.Mui-checked': { color: D.navy },
+                      }}
                     />
                   }
                 />
               ))}
             </Box>
 
-            <Typography sx={{ fontSize: '.6875rem', fontWeight: 600, letterSpacing: '.07em', textTransform: 'uppercase', color: D.muted }}>
+            <Typography
+              sx={{
+                fontSize: '.6875rem',
+                fontWeight: 600,
+                letterSpacing: '.07em',
+                textTransform: 'uppercase',
+                color: D.muted,
+              }}
+            >
               Show only
             </Typography>
+
             <Box sx={{ display: 'flex', flexDirection: 'column' }}>
               <FormControlLabel
                 label="MeetAI invited"
@@ -172,19 +263,36 @@ export default function CalendarToolbar({
                   <Checkbox
                     size="small"
                     checked={filters.meetAIOnly}
-                    onChange={(event) => onFiltersChange({ ...filters, meetAIOnly: event.target.checked })}
-                    sx={{ color: D.navy, '&.Mui-checked': { color: D.navy } }}
+                    onChange={(event) =>
+                      onFiltersChange({
+                        ...filters,
+                        meetAIOnly: event.target.checked,
+                      })
+                    }
+                    sx={{
+                      color: D.navy,
+                      '&.Mui-checked': { color: D.navy },
+                    }}
                   />
                 }
               />
+
               <FormControlLabel
                 label="Hosted by me"
                 control={
                   <Checkbox
                     size="small"
                     checked={filters.hostedByMe}
-                    onChange={(event) => onFiltersChange({ ...filters, hostedByMe: event.target.checked })}
-                    sx={{ color: D.navy, '&.Mui-checked': { color: D.navy } }}
+                    onChange={(event) =>
+                      onFiltersChange({
+                        ...filters,
+                        hostedByMe: event.target.checked,
+                      })
+                    }
+                    sx={{
+                      color: D.navy,
+                      '&.Mui-checked': { color: D.navy },
+                    }}
                   />
                 }
               />
@@ -193,7 +301,13 @@ export default function CalendarToolbar({
             <Button
               disabled={activeFilterCount === 0}
               onClick={onClearFilters}
-              sx={{ mt: 1, p: 0, textTransform: 'none', fontSize: '.8125rem', color: D.navy }}
+              sx={{
+                mt: 1,
+                p: 0,
+                textTransform: 'none',
+                fontSize: '.8125rem',
+                color: D.navy,
+              }}
             >
               Clear filters
             </Button>

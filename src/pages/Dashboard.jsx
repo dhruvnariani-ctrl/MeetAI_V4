@@ -1,25 +1,19 @@
 
-import { useMemo, useState } from 'react'
-import { useNavigate, useOutletContext } from 'react-router-dom'
+import { useMemo } from 'react'
+import { useOutletContext } from 'react-router-dom'
 
 import Box from '@mui/material/Box'
-import Button from '@mui/material/Button'
+import ButtonBase from '@mui/material/ButtonBase'
 import Typography from '@mui/material/Typography'
 
-import ArrowOutwardRoundedIcon from '@mui/icons-material/ArrowOutwardRounded'
-import PlayCircleOutlineRoundedIcon from '@mui/icons-material/PlayCircleOutlineRounded'
-import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined'
+import ArrowForwardRoundedIcon from '@mui/icons-material/ArrowForwardRounded'
+import CalendarMonthRoundedIcon from '@mui/icons-material/CalendarMonthRounded'
+import LinkRoundedIcon from '@mui/icons-material/LinkRounded'
 
-import DashboardActionItemsCard from '../components/dashboard/DashboardActionItemsCard'
 import MeetingTimeline from '../components/dashboard/MeetingTimeline'
-import ConfirmMarkDoneDialog from '../components/tasks/ConfirmMarkDoneDialog'
-import { D } from '../components/dashboard/dashTheme'
+import { D, titleSx } from '../components/dashboard/dashTheme'
 
-import {
-  getTodaysMeetings,
-  updateMeetingActionItemStatus,
-} from '../data/meetings'
-
+import { getTodaysMeetings } from '../data/meetings'
 import { saveMeetingSettings } from '../data/meetingSettings'
 
 import useNow from '../hooks/Usenow'
@@ -27,22 +21,116 @@ import useCurrentUser from '../hooks/useCurrentUser'
 import useMeetingSettings from '../hooks/useMeetingSettings'
 import { filterUserMeetings } from '../utils/meetingAccess'
 
-import {
-  getActionItemsFromMeetings,
-  isActionableTask,
-  tasksDueTodayForUser,
-} from '../components/dashboard/dashboardUtils'
+
+function QuickActionCard({
+  title,
+  description,
+  icon,
+  onClick,
+  primary = false,
+}) {
+  return (
+    <ButtonBase
+      onClick={onClick}
+      sx={{
+        width: '100%',
+        minHeight: 112,
+        p: { xs: 2, sm: 2.5 },
+        display: 'flex',
+        alignItems: 'center',
+        textAlign: 'left',
+        justifyContent: 'space-between',
+        gap: 2,
+        borderRadius: '10px',
+        border: `1px solid ${primary ? D.green : D.line}`,
+        bgcolor: primary ? D.green : '#FFFFFF',
+        transition: 'all .18s ease',
+
+        '&:hover': {
+          bgcolor: primary ? '#168A43' : '#F5F8FE',
+          borderColor: primary ? '#168A43' : D.navy,
+          transform: 'translateY(-2px)',
+          boxShadow: '0 5px 16px rgba(20, 43, 95, .08)',
+        },
+
+        '&:focus-visible': {
+          outline: `2px solid ${D.navy}`,
+          outlineOffset: 3,
+        },
+      }}
+    >
+      <Box
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 2,
+          minWidth: 0,
+        }}
+      >
+        {/* Icon container */}
+        <Box
+          sx={{
+            width: 48,
+            height: 48,
+            flexShrink: 0,
+            display: 'grid',
+            placeItems: 'center',
+            borderRadius: '9px',
+            bgcolor: primary
+              ? 'rgba(255,255,255,0.18)'
+              : '#F0F4FC',
+            color: primary ? '#FFFFFF' : D.navy,
+          }}
+        >
+          {icon}
+        </Box>
+
+        {/* Text */}
+        <Box sx={{ minWidth: 0 }}>
+          <Typography
+            sx={{
+              fontSize: { xs: '.875rem', sm: '.95rem' },
+              fontWeight: 700,
+              color: primary ? '#FFFFFF' : D.navy,
+              lineHeight: 1.4,
+            }}
+          >
+            {title}
+          </Typography>
+
+          <Typography
+            sx={{
+              mt: 0.5,
+              fontSize: '.75rem',
+              lineHeight: 1.5,
+              color: primary
+                ? 'rgba(255,255,255,0.88)'
+                : D.muted,
+            }}
+          >
+            {description}
+          </Typography>
+        </Box>
+      </Box>
+
+      {/* Arrow */}
+      <ArrowForwardRoundedIcon
+        sx={{
+          flexShrink: 0,
+          color: primary ? '#FFFFFF' : D.navy,
+          fontSize: 22,
+        }}
+      />
+    </ButtonBase>
+  )
+}
+
 
 export default function Dashboard() {
   const now = useNow()
-  const navigate = useNavigate()
   const currentUser = useCurrentUser()
   const outletContext = useOutletContext() ?? {}
   const meetingSettings = useMeetingSettings()
-
-  const [doneIds, setDoneIds] = useState(() => new Set())
-  const [taskToConfirm, setTaskToConfirm] = useState(null)
-  const [taskStatusVersion, setTaskStatusVersion] = useState(0)
 
   const sortedMeetings = useMemo(() => {
     return filterUserMeetings(getTodaysMeetings(now), currentUser)
@@ -62,272 +150,119 @@ export default function Dashboard() {
           !Number.isNaN(meeting._start.getTime()) &&
           !Number.isNaN(meeting._end.getTime()),
       )
-      .sort((a, b) => a._start.getTime() - b._start.getTime())
-  }, [now, currentUser, taskStatusVersion])
-
-  const allTodaysUserTasks = useMemo(
-    () =>
-      tasksDueTodayForUser(
-        getActionItemsFromMeetings(sortedMeetings),
-        currentUser,
-        now,
-      ),
-    [sortedMeetings, currentUser, now],
-  )
-
-  const actionableTasks = useMemo(
-    () =>
-      allTodaysUserTasks.filter(
-        (item) => isActionableTask(item) && !doneIds.has(item.id),
-      ),
-    [allTodaysUserTasks, doneIds],
-  )
-
-  const actionCount = actionableTasks.filter(
-    (item) => item.status !== 'blocked',
-  ).length
-
-  const recentRecordings = useMemo(() => {
-    return [...sortedMeetings]
-      .filter((meeting) => {
-        const status = String(
-          meeting.status ?? meeting.type ?? '',
-        ).toLowerCase()
-
-        const completed =
-          status === 'done' ||
-          status === 'completed' ||
-          meeting._end < now
-
-        const meetAI = meeting.meetAI ?? {}
-
-        const hasTranscript =
-          Boolean(meeting.transcript) ||
-          Boolean(meetAI.transcript) ||
-          Boolean(meetAI.recordTranscript)
-
-        const hasVideo =
-          Boolean(meeting.recording) ||
-          Boolean(meeting.videoRecording) ||
-          Boolean(meetAI.recordVideo)
-
-        return completed && (hasTranscript || hasVideo)
-      })
-      .sort((a, b) => b._start.getTime() - a._start.getTime())
-      .slice(0, 3)
-  }, [sortedMeetings, now])
+      .sort(
+        (a, b) => a._start.getTime() - b._start.getTime(),
+      )
+  }, [now, currentUser])
 
   const handleSettingsChange = (meetingId, changes) => {
     saveMeetingSettings(meetingId, changes)
   }
 
-  const handleTaskDone = (taskId) => {
-    const task = allTodaysUserTasks.find((item) => item.id === taskId)
-
-    if (!task?.meetingId || doneIds.has(taskId)) return
-
-    setTaskToConfirm(task)
-  }
-
-  const handleConfirmTaskDone = () => {
-    if (!taskToConfirm?.meetingId) return
-
-    updateMeetingActionItemStatus(
-      taskToConfirm.meetingId,
-      taskToConfirm.id,
-      'Done',
-    )
-
-    setDoneIds((previous) => new Set(previous).add(taskToConfirm.id))
-    setTaskToConfirm(null)
-    setTaskStatusVersion((version) => version + 1)
-  }
-
   return (
-    <>
-      <Box sx={{ width: '100%', minWidth: 0, color: D.text }}>
+    <Box
+      sx={{
+        width: '100%',
+        minWidth: 0,
+        color: D.text,
+        boxSizing: 'border-box',
+      }}
+    >
+      <Box
+        sx={{
+          width: '100%',
+          maxWidth: 1800,
+          mx: 'auto',
+          display: 'grid',
+          gridTemplateColumns: {
+            xs: 'minmax(0, 1fr)',
+            lg: 'minmax(0, 3fr) minmax(0, 2fr)',
+          },
+          columnGap: { xs: 3, lg: 3.5, xl: 4 },
+          rowGap: 3,
+          alignItems: 'stretch',
+        }}
+      >
+        {/* LEFT: 60% - Today's meetings */}
+        <Box sx={{ minWidth: 0 }}>
+          <MeetingTimeline
+            meetings={sortedMeetings}
+            now={now}
+            meetingSettings={meetingSettings}
+            onSettingsChange={handleSettingsChange}
+          />
+        </Box>
+
+        {/* RIGHT: 40% - Quick Actions */}
         <Box
+          component="aside"
+          aria-label="Quick actions"
           sx={{
-            display: 'grid',
-            gridTemplateColumns: {
-              xs: 'minmax(0, 1fr)',
-              lg: 'minmax(0, 1.9fr) minmax(280px, 1fr)',
+            minWidth: 0,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 2,
+            position: { lg: 'sticky' },
+            top: { lg: 20 },
+
+            // Vertical divider
+            borderLeft: {
+              xs: 'none',
+              lg: `1px solid ${D.line}`,
             },
-            columnGap: 3,
-            rowGap: 3,
-            alignItems: 'start',
+
+            // Space between divider and Quick Actions
+            pl: {
+              xs: 0,
+              lg: 3,
+              xl: 4,
+            },
           }}
         >
-          <Box sx={{ minWidth: 0 }}>
-            <MeetingTimeline
-              meetings={sortedMeetings}
-              now={now}
-              meetingSettings={meetingSettings}
-              onSettingsChange={handleSettingsChange}
-              onSchedule={() => outletContext.openCreate?.()}
-              onInvite={() => outletContext.openInstant?.()}
-            />
-          </Box>
-
-          <Box
-            sx={{
-              minWidth: 0,
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 3,
-            }}
-          >
-            <DashboardActionItemsCard
-              items={actionableTasks}
-              count={actionCount}
-              onToggleDone={handleTaskDone}
-            />
-
-            <Box
-              component="section"
-              aria-label="Recent recordings"
-              sx={{ minWidth: 0 }}
+          <Box sx={{ mb: 0.5 }}>
+            <Typography
+              component="h2"
+              sx={{
+                ...titleSx,
+                fontSize: { xs: '1.5rem', md: '1.65rem' },
+                fontWeight: 400,
+                color: D.navy,
+                pt: 0,
+              }}
             >
-              <Box
-                sx={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  gap: 1,
-                  mb: 1.25,
-                }}
-              >
-                <Typography
-                  component="h2"
-                  sx={{
-                    fontSize: '1rem',
-                    fontWeight: 600,
-                    color: D.navy,
-                  }}
-                >
-                  Recent Recordings
-                </Typography>
+              Quick Actions
+            </Typography>
 
-                <Button
-                  size="small"
-                  onClick={() => navigate('/recordings')}
-                  endIcon={
-                    <ArrowOutwardRoundedIcon
-                      sx={{ fontSize: '12px !important' }}
-                    />
-                  }
-                  sx={{
-                    color: D.navy,
-                    fontSize: '.75rem',
-                    textTransform: 'none',
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  View all
-                </Button>
-              </Box>
-
-              {recentRecordings.length === 0 ? (
-                <Typography
-                  sx={{
-                    fontSize: '.8125rem',
-                    color: D.muted,
-                    py: 1,
-                  }}
-                >
-                  No recent recordings available for today.
-                </Typography>
-              ) : (
-                <Box
-                  sx={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: 0.75,
-                  }}
-                >
-                  {recentRecordings.map((meeting) => {
-                    const meetAI = meeting.meetAI ?? {}
-
-                    const hasVideo =
-                      Boolean(meeting.recording) ||
-                      Boolean(meeting.videoRecording) ||
-                      Boolean(meetAI.recordVideo)
-
-                    return (
-                      <Box
-                        key={meeting.id}
-                        sx={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: 1,
-                          p: 1.25,
-                          border: `1px solid ${D.line}`,
-                          borderRadius: '6px',
-                          bgcolor: '#fff',
-                        }}
-                      >
-                        {hasVideo ? (
-                          <PlayCircleOutlineRoundedIcon
-                            sx={{ fontSize: 20, color: D.navy }}
-                          />
-                        ) : (
-                          <DescriptionOutlinedIcon
-                            sx={{ fontSize: 20, color: D.navy }}
-                          />
-                        )}
-
-                        <Box sx={{ flex: 1, minWidth: 0 }}>
-                          <Typography
-                            noWrap
-                            sx={{
-                              fontSize: '.8125rem',
-                              fontWeight: 500,
-                              color: D.navy,
-                            }}
-                          >
-                            {meeting.title}
-                          </Typography>
-
-                          <Typography
-                            sx={{
-                              fontSize: '.6875rem',
-                              color: D.muted,
-                            }}
-                          >
-                            {hasVideo ? 'Video recording' : 'Transcript'}
-                          </Typography>
-                        </Box>
-
-                        <Button
-                          size="small"
-                          onClick={() =>
-                            navigate(`/meetings/${meeting.id}`)
-                          }
-                          sx={{
-                            flexShrink: 0,
-                            fontSize: '.6875rem',
-                            textTransform: 'none',
-                            color: D.navy,
-                          }}
-                        >
-                          Open
-                        </Button>
-                      </Box>
-                    )
-                  })}
-                </Box>
-              )}
-            </Box>
+            <Typography
+              sx={{
+                mt: 0.5,
+                fontSize: '.8125rem',
+                color: D.muted,
+                lineHeight: 1.5,
+              }}
+            >
+              Manage your meetings with ease.
+            </Typography>
           </Box>
+
+          {/* Invite MeetAI to an existing meeting */}
+          <QuickActionCard
+            title="Invite MeetAI to your Meeting"
+            description="Add MeetAI to an existing Teams, Zoom or Google Meet call."
+            icon={<LinkRoundedIcon sx={{ fontSize: 27 }} />}
+            primary
+            onClick={() => outletContext.openInstant?.()}
+          />
+
+          {/* Schedule a future meeting */}
+          <QuickActionCard
+            title="Schedule a Meeting"
+            description="Plan a meeting for a future date and time."
+            icon={<CalendarMonthRoundedIcon sx={{ fontSize: 27 }} />}
+            onClick={() => outletContext.openCreate?.()}
+          />
         </Box>
       </Box>
-
-      <ConfirmMarkDoneDialog
-        open={Boolean(taskToConfirm)}
-        taskTitle={taskToConfirm?.title ?? ''}
-        onCancel={() => setTaskToConfirm(null)}
-        onConfirm={handleConfirmTaskDone}
-      />
-    </>
+    </Box>
   )
 }

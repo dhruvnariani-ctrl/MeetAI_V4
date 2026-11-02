@@ -112,7 +112,7 @@ export default function AppLayout() {
         minHeight: 0,
         overflow: 'hidden',
         bgcolor: D.page,
-        pb:0
+        pb:0,
       }}
     >
       <Box
@@ -123,7 +123,7 @@ export default function AppLayout() {
           left: 12,
           top: -60,
           zIndex: 2000,
-          px: 2,
+          px:{ xs: 0, md: 0 ,lg:12},
           py: 1.25,
           borderRadius: '12px',
           bgcolor: 'text.primary',
@@ -163,6 +163,7 @@ export default function AppLayout() {
           minHeight: 0,
           overflow: 'auto',
           outline: 'none',
+          px:{ xs: 0, md: 0 ,lg:10},
           bgcolor: D.page,
           '&:focus-visible': { outline: '2px solid', outlineColor: 'primary.main', outlineOffset: -2 },
         }}
