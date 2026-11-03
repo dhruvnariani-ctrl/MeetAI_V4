@@ -85,6 +85,7 @@ function CalendarDateGrid({
   onOpenDay,
   showMonth = false,
   view = 'day',
+  compact = false,
 }) {
   const selectedKey = dateKey(selectedDate)
   const todayKey = dateKey(new Date())
@@ -124,7 +125,7 @@ function CalendarDateGrid({
             role="columnheader"
             sx={{
               textAlign: 'center',
-              py: 0.5,
+              py: compact ? 0.4 : 0.5,
               fontSize: '.625rem',
               lineHeight: 1.4,
               fontWeight: 600,
@@ -141,7 +142,7 @@ function CalendarDateGrid({
         sx={{
           display: 'grid',
           gridTemplateColumns: 'repeat(7, minmax(0, 1fr))',
-          gridAutoRows: { xs: 38, sm: 44, md: 48 },
+          gridAutoRows: compact ? { xs: 26, sm: 30, md: 33 } : { xs: 38, sm: 44, md: 48 },
         }}
       >
         {days.map((day) => {
@@ -192,8 +193,8 @@ function CalendarDateGrid({
                   flexDirection: 'column',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  width: { xs: 30, sm: 36, md: 40 },
-                  height: { xs: 30, sm: 36, md: 40 },
+                  width: compact ? { xs: 21, sm: 25, md: 28 } : { xs: 30, sm: 36, md: 40 },
+                  height: compact ? { xs: 21, sm: 25, md: 28 } : { xs: 30, sm: 36, md: 40 },
                   borderRadius: '8px',
                   border: today && !selected
                     ? `1px solid ${D.navy}`
@@ -653,6 +654,7 @@ export function MonthGrid({
   meetings,
   onOpenDay,
   view = 'month',
+  compact = false,
 }) {
   const first = new Date(
     selectedDate.getFullYear(),
@@ -686,6 +688,7 @@ export function MonthGrid({
         onOpenDay={onOpenDay}
         showMonth
         view={view}
+        compact={compact}
       />
     </Box>
   )

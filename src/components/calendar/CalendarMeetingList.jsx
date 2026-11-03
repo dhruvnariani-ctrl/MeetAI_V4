@@ -1,11 +1,12 @@
-
 import { useMemo } from 'react'
 
 import Box from '@mui/material/Box'
+import Button from '@mui/material/Button'
 import ButtonBase from '@mui/material/ButtonBase'
 import Typography from '@mui/material/Typography'
 
 import ArrowOutwardRoundedIcon from '@mui/icons-material/ArrowOutwardRounded'
+import CheckCircleOutlineRoundedIcon from '@mui/icons-material/CheckCircleOutlineRounded'
 
 import { EmptyPanel } from '../PageShell'
 import PaginationBar from '../PaginationBar'
@@ -14,34 +15,12 @@ import { getMeetingToggleSettings } from '../meetings/meetingHelpers'
 
 import usePagination from '../../hooks/usePagination'
 import { parseDate } from '../../utils/calenderDates'
-import { D, serif, time24 } from '../dashboard/dashTheme'
+import { D, time24 } from '../dashboard/dashTheme'
 
 const PAGE_SIZE = 5
 
-const STATUS = {
-  Live: {
-    label: 'Live',
-    color: D.greenText,
-    background: '#EAF7EF',
-  },
-  Upcoming: {
-    label: 'Upcoming',
-    color: D.navy,
-    background: '#EAF0FC',
-  },
-  Done: {
-    label: 'Done',
-    color: D.muted,
-    background: '#F0F2F5',
-  },
-}
-
-const dayHeading = new Intl.DateTimeFormat('en-US', {
-  weekday: 'long',
-  month: 'long',
-  day: 'numeric',
-  year: 'numeric',
-})
+// Same radius as the dashboard
+const R = '12px'
 
 function durationOf(meeting) {
   if (meeting.duration) {
@@ -60,12 +39,6 @@ function durationOf(meeting) {
   return `${Math.max(0, Math.round((end - start) / 60000))} min`
 }
 
-function participantsOf(meeting) {
-  return Array.isArray(meeting.participants)
-    ? meeting.participants
-    : []
-}
-
 function participantCountOf(meeting) {
   if (Array.isArray(meeting.participants)) {
     return meeting.participants.length
@@ -74,59 +47,78 @@ function participantCountOf(meeting) {
   return Number(meeting.participants) || 0
 }
 
-function participantName(participant) {
-  if (typeof participant === 'string') return participant
-
-  return (
-    participant?.name ||
-    participant?.fullName ||
-    participant?.email ||
-    participant?.title ||
-    ''
-  )
-}
-
-function statusFor(meeting) {
+function isDone(meeting) {
   const rawStatus = String(
     meeting?.type ?? meeting?.status ?? '',
   ).trim().toLowerCase()
 
-  if (rawStatus === 'live' || rawStatus === 'in progress') {
-    return STATUS.Live
-  }
-
-  if (rawStatus === 'done' || rawStatus === 'completed') {
-    return STATUS.Done
-  }
+  if (rawStatus === 'done' || rawStatus === 'completed') return true
+  if (rawStatus === 'live' || rawStatus === 'in progress') return false
 
   if (meeting?.start && meeting?.end) {
     const start = new Date(meeting.start).getTime()
     const end = new Date(meeting.end).getTime()
-    const now = Date.now()
 
     if (
       Number.isFinite(start) &&
       Number.isFinite(end) &&
       end >= start
     ) {
-      if (now >= end) return STATUS.Done
-      if (now >= start) return STATUS.Live
+      return Date.now() >= end
     }
   }
 
-  return STATUS.Upcoming
+  return false
 }
 
+function dayHeading(value) {
+  const date = parseDate(value)
+
+  const weekday = date
+    .toLocaleDateString('en-IN', { weekday: 'short' })
+    .toUpperCase()
+
+  const day = date
+    .toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })
+    .toUpperCase()
+
+  return `${weekday} · ${day}`
+}
+
+/* Date separator (same look as the dashboard) */
+function DayHeader({ children }) {
+  return (
+    <Box
+      sx={{
+        px: { xs: 1.25, sm: 1.75 },
+        py: 0.55,
+        bgcolor: '#F5F7FB',
+        borderBottom: `1px solid ${D.line}`,
+      }}
+    >
+      <Typography
+        sx={{
+          fontSize: '.625rem',
+          fontWeight: 700,
+          letterSpacing: '.04em',
+          color: D.muted,
+        }}
+      >
+        {children}
+      </Typography>
+    </Box>
+  )
+}
+
+/* Compact meeting row (same layout as the dashboard row) */
 function MeetingRow({
   meeting,
   onOpenMeeting,
   settings = {},
   onSettingsChange,
 }) {
-  const status = statusFor(meeting)
-  const participants = participantsOf(meeting)
-  const participantNames = participants.map(participantName).filter(Boolean)
-  const participantCount = participantCountOf(meeting)
+  const completed = isDone(meeting)
+  const count = participantCountOf(meeting)
   const duration = durationOf(meeting)
 
   const meetingSettings = getMeetingToggleSettings(
@@ -134,204 +126,152 @@ function MeetingRow({
     settings?.[meeting.id],
   )
 
+  const open = () => onOpenMeeting?.(meeting)
+
   return (
     <Box
       sx={{
-        mb: 1,
-        '&:last-child': { mb: 0 },
-        minWidth: 0,
+        display: 'grid',
+        gridTemplateColumns: {
+          xs: '56px minmax(0, 1fr)',
+          sm: '64px minmax(0, 1fr)',
+        },
+        columnGap: 1,
+        alignItems: 'start',
+        px: { xs: 1, sm: 1.5 },
+        py: 0.75,
+        bgcolor: '#FFFFFF',
+        borderBottom: `1px solid ${D.line}`,
+        '&:last-child': { borderBottom: 0 },
       }}
     >
-      <Box
-        sx={{
-          minWidth: 0,
-          border: `1px solid ${D.line}`,
-          borderRadius: '8px',
-          bgcolor: '#F7F9FE',
-          overflow: 'hidden',
-          transition: 'background-color 120ms ease, border-color 120ms ease',
-          '&:hover': {
-            bgcolor: '#fff',
-            borderColor: D.navy,
-          },
-        }}
-      >
-        <ButtonBase
-          onClick={() => onOpenMeeting?.(meeting)}
-          aria-label={`Open ${meeting.title || 'meeting'} details`}
+      {/* Time */}
+      <Box sx={{ minWidth: 0 }}>
+        <Typography
           sx={{
-            display: 'flex',
-            alignItems: 'flex-start',
-            justifyContent: 'space-between',
-            gap: 1,
-            width: '100%',
-            minWidth: 0,
-            px: { xs: 1.25, sm: 1.75 },
-            pt: 1.25,
-            pb: 0.75,
-            textAlign: 'left',
-            '&:focus-visible': {
-              outline: `2px solid ${D.navy}`,
-              outlineOffset: -2,
-            },
+            fontSize: '.8125rem',
+            fontWeight: 700,
+            color: D.navy,
+            lineHeight: '20px',
+            whiteSpace: 'nowrap',
           }}
         >
-          <Box sx={{ minWidth: 0, flex: 1 }}>
-            <Typography
-              sx={{
-                fontSize: '.9375rem',
-                fontWeight: 600,
-                lineHeight: 1.4,
-                color: D.navy,
-                overflowWrap: 'anywhere',
-              }}
-            >
-              {meeting.title || 'Untitled meeting'}
-            </Typography>
+          {time24(meeting.start)}
+        </Typography>
 
-            <Typography
-              sx={{
-                mt: 0.35,
-                fontSize: '.75rem',
-                color: D.text,
-                lineHeight: 1.45,
-              }}
-            >
-              {time24(meeting.start)} – {time24(meeting.end)}
-            </Typography>
-          </Box>
-
-          <Box
+        {duration && (
+          <Typography
             sx={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 0.5,
-              flexShrink: 0,
-              pt: 0.25,
+              fontSize: '.6875rem',
+              color: D.muted,
+              lineHeight: '17px',
+              whiteSpace: 'nowrap',
             }}
           >
-            <Box
-              component="span"
+            {duration}
+          </Typography>
+        )}
+      </Box>
+
+      {/* Meeting information */}
+      <Box
+        sx={{
+          display: 'grid',
+          gridTemplateColumns: 'minmax(0, 1fr) auto 22px',
+          columnGap: { xs: 0.75, sm: 1 },
+          alignItems: 'start',
+          minWidth: 0,
+        }}
+      >
+        <Box sx={{ minWidth: 0 }}>
+          <ButtonBase
+            onClick={open}
+            aria-label={`Open ${meeting.title || 'meeting'} details`}
+            sx={{
+              display: 'block',
+              minWidth: 0,
+              width: '100%',
+              textAlign: 'left',
+              justifyContent: 'flex-start',
+              borderRadius: R,
+            }}
+          >
+            <Typography
               sx={{
-                px: 1,
-                py: 0.4,
-                borderRadius: '12px',
-                bgcolor: status.background,
-                color: status.color,
-                fontSize: '.6875rem',
+                fontSize: '.8125rem',
                 fontWeight: 600,
+                color: D.navy,
+                lineHeight: '20px',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
                 whiteSpace: 'nowrap',
               }}
             >
-              {status.label}
-            </Box>
+              {completed && (
+                <CheckCircleOutlineRoundedIcon
+                  sx={{
+                    fontSize: 14,
+                    color: '#2875C7',
+                    verticalAlign: 'middle',
+                    mr: 0.5,
+                  }}
+                />
+              )}
+              {meeting.title || 'Untitled meeting'}
+            </Typography>
+          </ButtonBase>
 
-            <ArrowOutwardRoundedIcon
-              aria-hidden="true"
-              sx={{ fontSize: 16, color: D.muted }}
-            />
-          </Box>
-        </ButtonBase>
+          <Typography
+            sx={{
+              fontSize: '.6875rem',
+              color: D.muted,
+              lineHeight: '17px',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {meeting.platform || 'Platform not specified'} · {count} participant
+            {count === 1 ? '' : 's'}
+          </Typography>
+        </Box>
 
+        {/* Toggles: always shown, disabled once the meeting is done */}
         <Box
           sx={{
-            px: { xs: 1.25, sm: 1.75 },
-            pb: 1.25,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'flex-end',
             minWidth: 0,
           }}
         >
-          <Box
-            sx={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              flexWrap: 'wrap',
-              columnGap: 1.5,
-              rowGap: 0.75,
-              minWidth: 0,
-            }}
-          >
-            <Box
-              sx={{
-                display: 'flex',
-                alignItems: 'center',
-                flexWrap: 'wrap',
-                gap: 0.75,
-                flex: '1 1 180px',
-                minWidth: 0,
-              }}
-            >
-              <Typography
-                sx={{
-                  fontSize: '.75rem',
-                  color: D.text,
-                  fontWeight: 600,
-                  overflowWrap: 'anywhere',
-                }}
-              >
-                {meeting.platform || 'Platform not specified'}
-              </Typography>
-
-              <Typography aria-hidden="true" sx={{ fontSize: '.75rem', color: D.muted }}>
-                ·
-              </Typography>
-
-              <Typography sx={{ fontSize: '.75rem', color: D.text }}>
-                {participantCount} participant{participantCount === 1 ? '' : 's'}
-              </Typography>
-
-              {duration && (
-                <>
-                  <Typography aria-hidden="true" sx={{ fontSize: '.75rem', color: D.muted }}>
-                    ·
-                  </Typography>
-                  <Typography sx={{ fontSize: '.75rem', color: D.text }}>
-                    {duration}
-                  </Typography>
-                </>
-              )}
-            </Box>
-
-            <Box sx={{ display: 'flex', alignItems: 'center', minWidth: 0 }}>
-              <MeetingToggles
-                meeting={meeting}
-                settings={meetingSettings}
-                onChange={(changes) =>
-                  onSettingsChange?.(meeting.id, changes)
-                }
-              />
-            </Box>
-          </Box>
-
-          {participantNames.length > 0 && (
-            <Typography
-              sx={{
-                mt: 0.75,
-                fontSize: '.75rem',
-                color: D.muted,
-                lineHeight: 1.5,
-                overflowWrap: 'anywhere',
-              }}
-            >
-              {participantNames.join(', ')}
-            </Typography>
-          )}
-
-          {meeting.description && (
-            <Typography
-              sx={{
-                mt: 0.75,
-                fontSize: '.75rem',
-                color: D.text,
-                lineHeight: 1.5,
-                whiteSpace: 'pre-wrap',
-                overflowWrap: 'anywhere',
-              }}
-            >
-              {meeting.description}
-            </Typography>
-          )}
+          <MeetingToggles
+            compact
+            disabled={completed}
+            meeting={meeting}
+            settings={meetingSettings}
+            onChange={(changes) =>
+              onSettingsChange?.(meeting.id, changes)
+            }
+          />
         </Box>
+
+        <Button
+          size="small"
+          onClick={open}
+          aria-label={`Open ${meeting.title || 'meeting'} meeting details`}
+          sx={{
+            minWidth: 22,
+            width: 22,
+            height: 22,
+            p: 0,
+            color: D.navy,
+            borderRadius: R,
+            '&:hover': { bgcolor: '#EAF0FC' },
+          }}
+        >
+          <ArrowOutwardRoundedIcon sx={{ fontSize: 15 }} />
+        </Button>
       </Box>
     </Box>
   )
@@ -394,22 +334,15 @@ export default function CalendarMeetingList({
               listStyle: 'none',
               mb: 1.5,
               '&:last-child': { mb: 0 },
+              border: `1px solid ${D.line}`,
+              borderRadius: R,
+              overflow: 'hidden',
+              bgcolor: '#FFFFFF',
+              boxShadow: '0 1px 3px rgba(20,40,80,.04)',
             }}
           >
             {group.date !== 'unknown' && (
-              <Typography
-                component="h3"
-                sx={{
-                  mb: 0.75,
-                  fontFamily: serif,
-                  fontWeight: 400,
-                  fontSize: '1.1rem',
-                  color: D.navy,
-                  lineHeight: 1.35,
-                }}
-              >
-                {dayHeading.format(parseDate(group.date))}
-              </Typography>
+              <DayHeader>{dayHeading(group.date)}</DayHeader>
             )}
 
             <Box component="ul" sx={{ m: 0, p: 0, listStyle: 'none' }}>
@@ -436,8 +369,8 @@ export default function CalendarMeetingList({
           mt: 1.5,
           borderColor: D.line,
           '& .MuiPaginationItem-root.Mui-selected, & .MuiPaginationItem-root.Mui-selected:hover': {
-            bgcolor: D.navy,
-            color: '#fff',
+            bgcolor: '#EAF0FC',
+            color: D.navy,
           },
         }}
       />

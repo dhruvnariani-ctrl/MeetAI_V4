@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 import Box from '@mui/material/Box'
@@ -8,10 +8,7 @@ import Typography from '@mui/material/Typography'
 
 import ArrowOutwardRoundedIcon from '@mui/icons-material/ArrowOutwardRounded'
 import CheckCircleOutlineRoundedIcon from '@mui/icons-material/CheckCircleOutlineRounded'
-import ExpandMoreRoundedIcon from '@mui/icons-material/ExpandMoreRounded'
-import ExpandLessRoundedIcon from '@mui/icons-material/ExpandLessRounded'
 import VideocamOutlinedIcon from '@mui/icons-material/VideocamOutlined'
-import ScheduleRoundedIcon from '@mui/icons-material/ScheduleRounded'
 
 import { EmptyPanel } from '../PageShell'
 import MeetingToggles from '../MeetingToggles'
@@ -27,22 +24,22 @@ import {
   statusOf,
 } from './dashboardUtils'
 
-import { D, time24, titleSx } from './dashTheme'
+import { D, time24 } from './dashTheme'
 
 const PAGE_SIZE = 5
 
-const WAVE = [6, 10, 16, 8, 14, 18, 9, 12, 17, 7, 13, 10]
+// Live card colours (light blue)
+const LIVE_BG = '#E3EDFB'
+const LIVE_BORDER = '#C9DAF5'
+const LIVE_ACCENT = '#315DA8'
+
+// One radius for everything (same value as Dashboard.jsx)
+const R = '12px'
 
 const peopleText = (meeting) => {
   const count = participantCount(meeting)
   return `${count} participant${count === 1 ? '' : 's'}`
 }
-
-const minutesOf = (meeting) =>
-  Math.max(
-    1,
-    Math.round((meeting._end - meeting._start) / 60000),
-  )
 
 const openItemCount = (meeting) =>
   (meeting.actionItems ?? []).filter(
@@ -65,96 +62,53 @@ const settingsFor = (meeting, all) => {
   }
 }
 
-/* Compact meeting status heading */
-function SectionDropdown({
-  title,
-  count,
-  open,
-  onClick,
-  icon,
-  expandedColor = D.navy,
-}) {
-  return (
-    <ButtonBase
-      onClick={onClick}
-      aria-expanded={open}
-      sx={{
-        width: '100%',
-        minHeight: 54,
-        px: { xs: 1.5, sm: 2 },
-        py: 1.25,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        gap: 1.5,
-        textAlign: 'left',
-        bgcolor: '#FFFFFF',
-        border: `1px solid ${D.line}`,
-        borderRadius: '7px',
-        transition: 'background .15s ease',
-        '&:hover': {
-          bgcolor: '#F7F9FE',
-          borderColor: '#B8C9EA',
-        },
-        '&:focus-visible': {
-          outline: `2px solid ${D.navy}`,
-          outlineOffset: 2,
-        },
-      }}
-    >
-      <Box
-        sx={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 1.25,
-          minWidth: 0,
-        }}
-      >
-        {icon}
+const dateKey = (value) => {
+  const date = new Date(value)
 
-        <Typography
-          sx={{
-            fontSize: '.9375rem',
-            fontWeight: 600,
-            color: D.navy,
-          }}
-        >
-          {title}
-        </Typography>
-
-        <Box
-          sx={{
-            minWidth: 25,
-            height: 25,
-            px: 0.75,
-            display: 'grid',
-            placeItems: 'center',
-            borderRadius: '20px',
-            bgcolor: '#E8EFFD',
-            color: expandedColor,
-            fontSize: '.75rem',
-            fontWeight: 700,
-          }}
-        >
-          {count}
-        </Box>
-      </Box>
-
-      {open ? (
-        <ExpandLessRoundedIcon sx={{ color: D.navy }} />
-      ) : (
-        <ExpandMoreRoundedIcon sx={{ color: D.navy }} />
-      )}
-    </ButtonBase>
-  )
+  return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`
 }
 
-/* Main live meeting card */
+const dayHeading = (value, now) => {
+  const date = new Date(value)
+  const today = new Date(now)
+
+  today.setHours(0, 0, 0, 0)
+
+  const tomorrow = new Date(today)
+  tomorrow.setDate(tomorrow.getDate() + 1)
+
+  const target = new Date(date)
+  target.setHours(0, 0, 0, 0)
+
+  const weekday = date
+    .toLocaleDateString('en-IN', { weekday: 'short' })
+    .toUpperCase()
+
+  const day = date
+    .toLocaleDateString('en-IN', {
+      day: 'numeric',
+      month: 'short',
+    })
+    .toUpperCase()
+
+  if (target.getTime() === today.getTime()) {
+    return `TODAY · ${weekday} ${day}`
+  }
+
+  if (target.getTime() === tomorrow.getTime()) {
+    return `TOMORROW · ${weekday} ${day}`
+  }
+
+  return `${weekday} · ${day}`
+}
+
+
 function LiveCard({
   meeting,
   now,
   settings,
   onSettingsChange,
+  compact = false,
 }) {
   const navigate = useNavigate()
 
@@ -164,7 +118,6 @@ function LiveCard({
   )
 
   const joinUrl = joinUrlOf(meeting)
-  const recording = settings.autoJoin === true
 
   const join = () => {
     if (joinUrl) {
@@ -185,29 +138,30 @@ function LiveCard({
       sx={{
         width: '100%',
         minWidth: 0,
-        bgcolor: D.card,
-        color: '#FFFFFF',
-        borderRadius: '7px',
-        p: { xs: 1.75, sm: 2.5 },
+        bgcolor: LIVE_BG,
+        border: `1px solid ${LIVE_BORDER}`,
+        color: D.navy,
+        borderRadius: R,
+        p: compact ? { xs: 1, sm: 1.35 } : { xs: 1.5, sm: 2},
         boxSizing: 'border-box',
       }}
     >
-      {/* Meeting title and join */}
+      {/* Row 1: Live status, meeting title and Join */}
       <Box
         sx={{
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          gap: 2,
+          gap: 1.5,
         }}
       >
-        <Box sx={{ minWidth: 0 }}>
+        <Box sx={{ minWidth: 0, flex: 1 }}>
           <Typography
             sx={{
               fontSize: '.6875rem',
               fontWeight: 700,
               letterSpacing: '.06em',
-              color: D.live,
+              color: LIVE_ACCENT,
               textTransform: 'uppercase',
             }}
           >
@@ -217,24 +171,15 @@ function LiveCard({
           <Typography
             component="h3"
             sx={{
-              mt: 0.4,
-              fontSize: { xs: '1.15rem', sm: '1.35rem' },
+              mt: compact ? 0.2 : 0.35,
+              fontSize: { xs: '1.05rem', sm: '1.25rem' },
               fontWeight: 600,
-              lineHeight: 1.35,
-              color: '#FFFFFF',
+              lineHeight: 1.25,
+              color: D.navy,
+              overflowWrap: 'anywhere',
             }}
           >
             {meeting.title}
-          </Typography>
-
-          <Typography
-            sx={{
-              mt: 0.35,
-              fontSize: '.8125rem',
-              color: '#C3CEEE',
-            }}
-          >
-            {platformOf(meeting)} · {peopleText(meeting)}
           </Typography>
         </Box>
 
@@ -246,10 +191,10 @@ function LiveCard({
           onClick={join}
           sx={{
             flexShrink: 0,
-            minHeight: 42,
-            px: { xs: 1.5, sm: 2.5 },
-            borderRadius: '6px',
-            fontSize: '.8125rem',
+            minHeight: compact ? 29 : 34,
+            px: { xs: 1.25, sm: 1.75 },
+            borderRadius: R,
+            fontSize: '.8rem',
             fontWeight: 700,
             textTransform: 'none',
             bgcolor: D.green,
@@ -257,130 +202,120 @@ function LiveCard({
             '&:hover': {
               bgcolor: '#2C6C16',
             },
-            '&:focus-visible': {
-              outline: '2px solid #FFFFFF',
-              outlineOffset: 2,
-            },
           }}
         >
           Join
         </Button>
       </Box>
 
-      {/* Recording status */}
+      {/* Row 2: Meeting information left + controls right */}
       <Box
         sx={{
-          mt: 1.75,
-          pt: 1.25,
-          borderTop: '1px solid rgba(255,255,255,.17)',
+          mt:0,
+          pt:0,
           display: 'flex',
           alignItems: 'center',
           gap: 1,
+          minWidth: 0,
         }}
       >
-        {recording && (
-          <Box
-            aria-hidden="true"
-            sx={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '2px',
-              height: 18,
-              flexShrink: 0,
-            }}
-          >
-            {WAVE.map((height, index) => (
-              <Box
-                key={index}
-                sx={{
-                  width: 2,
-                  height,
-                  borderRadius: 1,
-                  bgcolor: D.live,
-                }}
-              />
-            ))}
-          </Box>
-        )}
-
+        {/* Left: Time, platform and participants */}
         <Typography
           sx={{
-            flex: 1,
-            fontSize: '.8125rem',
-            color: '#E3E9FA',
-          }}
-        >
-          {recording
-            ? 'MeetAI is recording and taking notes'
-            : 'MeetAI is not in this meeting'}
-        </Typography>
-      </Box>
-
-      {/* Toggles and meeting details */}
-      <Box
-        sx={{
-          mt: 1.25,
-          pt: 1.1,
-          borderTop: '1px solid rgba(255,255,255,.17)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: 1.5,
-          flexWrap: 'wrap',
-        }}
-      >
-        <MeetingToggles
-          dark
-          meeting={meeting}
-          settings={settings}
-          onChange={(changes) =>
-            onSettingsChange?.(meeting.id, changes)
-          }
-        />
-
-        <Button
-          size="small"
-          onClick={() => navigate(`/meetings/${meeting.id}`)}
-          endIcon={
-            <ArrowOutwardRoundedIcon
-              sx={{ fontSize: '13px !important' }}
-            />
-          }
-          sx={{
-            color: '#FFFFFF',
             fontSize: '.75rem',
-            textTransform: 'none',
-            whiteSpace: 'nowrap',
+            color: D.muted,
+            lineHeight: 1.4,
             minWidth: 0,
-            '&:hover': {
-              bgcolor: 'rgba(255,255,255,.08)',
-            },
+            flex: 1,
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
           }}
         >
-          Meeting details
-        </Button>
+          {time24(meeting._start)} – {time24(meeting._end)} ·{' '}
+          {platformOf(meeting)} · {peopleText(meeting)}
+        </Typography>
+
+        {/* Right: MeetAI toggles and Meeting details */}
+        <Box
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'flex-end',
+            gap: 1.25,
+            flexShrink: 0,
+            ml: 'auto',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          <MeetingToggles
+            meeting={meeting}
+            settings={settings}
+            onChange={(changes) =>
+              onSettingsChange?.(meeting.id, changes)
+            }
+          />
+
+          <Button
+            size="small"
+            onClick={() => navigate(`/meetings/${meeting.id}`)}
+            endIcon={
+              <ArrowOutwardRoundedIcon
+                sx={{ fontSize: '13px !important' }}
+              />
+            }
+            sx={{
+              flexShrink: 0,
+              color: LIVE_ACCENT,
+              borderRadius: R,
+              fontSize: '.75rem',
+              fontWeight: 600,
+              textTransform: 'none',
+              whiteSpace: 'nowrap',
+              minWidth: 0,
+              px: 0.5,
+              '&:hover': {
+                bgcolor: 'rgba(49,93,168,.08)',
+              },
+            }}
+          >
+            Meeting details
+          </Button>
+        </Box>
       </Box>
     </Box>
   )
 }
 
-/* Compact upcoming meeting row */
-function UpcomingRow({
+
+/* Compact meeting row */
+function MeetingRow({
   meeting,
+  completed = false,
   settings,
   onSettingsChange,
+  compact = false,
 }) {
   const navigate = useNavigate()
-  const items = openItemCount(meeting)
+
+  const duration = Math.max(
+    1,
+    Math.round((meeting._end - meeting._start) / 60000),
+  )
 
   return (
     <Box
       sx={{
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 0.75,
-        px: { xs: 1.5, sm: 2 },
-        py: 1.25,
+        display: 'grid',
+        gridTemplateColumns: {
+          xs: '56px minmax(0, 1fr)',
+          sm: '64px minmax(0, 1fr)',
+        },
+        columnGap: 1,
+        alignItems: 'start',
+        px: { xs: 1, sm: 1.5 },
+        pt:1,
+        pb:0,
         bgcolor: '#FFFFFF',
         borderBottom: `1px solid ${D.line}`,
         '&:last-child': {
@@ -388,221 +323,173 @@ function UpcomingRow({
         },
       }}
     >
-      <Box
-        sx={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: 1.5,
-        }}
-      >
-        <ButtonBase
-          onClick={() => navigate(`/meetings/${meeting.id}`)}
+      {/* Time */}
+      <Box sx={{ minWidth: 0 }}>
+        <Typography
           sx={{
-            minWidth: 0,
-            flex: 1,
-            textAlign: 'left',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'flex-start',
-            '&:focus-visible': {
-              outline: `2px solid ${D.navy}`,
-              outlineOffset: 2,
-            },
+            fontSize: '.8125rem',
+            fontWeight: 700,
+            color: D.navy,
+            lineHeight: compact ? '14px' : '20px',
+            whiteSpace: 'nowrap',
           }}
         >
-          <Typography
-            noWrap
+          {time24(meeting._start)}
+        </Typography>
+
+        <Typography
+          sx={{
+            fontSize: '.6875rem',
+            color: D.muted,
+            lineHeight: compact ? '12px' : '17px',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {duration} min
+        </Typography>
+      </Box>
+
+      {/* Meeting information */}
+      <Box
+        sx={{
+          display: 'grid',
+          gridTemplateColumns: 'minmax(0, 1fr) auto 22px',
+          columnGap: { xs: 0.75, sm: 1 },
+          alignItems: 'start',
+          minWidth: 0,
+        }}
+      >
+        <Box sx={{ minWidth: 0 }}>
+          <ButtonBase
+            onClick={() => navigate(`/meetings/${meeting.id}`)}
             sx={{
+              display: 'block',
+              minWidth: 0,
               width: '100%',
-              fontSize: '.875rem',
-              fontWeight: 600,
-              color: D.navy,
+              textAlign: 'left',
+              justifyContent: 'flex-start',
+              borderRadius: R,
             }}
           >
-            {meeting.title}
-          </Typography>
+            <Typography
+              sx={{
+                fontSize: '.8125rem',
+                fontWeight: 600,
+                color: D.navy,
+                lineHeight: compact ? '14px' : '20px',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {completed && (
+                <CheckCircleOutlineRoundedIcon
+                  sx={{
+                    fontSize: 14,
+                    color: '#2875C7',
+                    verticalAlign: 'middle',
+                    mr: 0.5,
+                  }}
+                />
+              )}
+              {meeting.title}
+            </Typography>
+          </ButtonBase>
 
           <Typography
             sx={{
-              mt: 0.25,
-              fontSize: '.75rem',
+              fontSize: '.6875rem',
               color: D.muted,
+              lineHeight: compact ? '12px' : '17px',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
             }}
           >
             {platformOf(meeting)} · {peopleText(meeting)}
           </Typography>
-        </ButtonBase>
+        </Box>
 
-        <Box
-          sx={{
-            flexShrink: 0,
-            textAlign: 'right',
-          }}
-        >
-          <Typography
+        {!completed ? (
+          <Box
             sx={{
-              fontSize: '.8125rem',
-              fontWeight: 600,
-              color: D.navy,
-              whiteSpace: 'nowrap',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'flex-end',
+              minWidth: 0,
             }}
           >
-            {time24(meeting._start)} – {time24(meeting._end)}
-          </Typography>
-
-          {items > 0 && (
-            <Typography
-              sx={{
-                mt: 0.25,
-                fontSize: '.6875rem',
-                color: D.muted,
-              }}
-            >
-              {items} action item{items === 1 ? '' : 's'}
-            </Typography>
-          )}
-        </Box>
-      </Box>
-
-      <Box
-        sx={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: 1,
-          flexWrap: 'wrap',
-        }}
-      >
-        <MeetingToggles
-          meeting={meeting}
-          settings={settings}
-          onChange={(changes) =>
-            onSettingsChange?.(meeting.id, changes)
-          }
-        />
+            <MeetingToggles
+              compact
+              meeting={meeting}
+              settings={settings}
+              onChange={(changes) =>
+                onSettingsChange?.(meeting.id, changes)
+              }
+            />
+          </Box>
+        ) : (
+          <Box />
+        )}
 
         <Button
           size="small"
-          endIcon={
-            <ArrowOutwardRoundedIcon
-              sx={{ fontSize: '13px !important' }}
-            />
-          }
           onClick={() => navigate(`/meetings/${meeting.id}`)}
+          aria-label={`Open ${meeting.title} meeting details`}
           sx={{
-            minWidth: 0,
-            px: 0.5,
-            fontSize: '.75rem',
-            fontWeight: 600,
-            textTransform: 'none',
+            minWidth: 22,
+            width: 22,
+            height: 22,
+            p: 0,
             color: D.navy,
+            borderRadius: R,
+            '&:hover': {
+              bgcolor: '#EAF0FC',
+            },
           }}
         >
-          View Meeting Details
+          <ArrowOutwardRoundedIcon sx={{ fontSize: 15 }} />
         </Button>
       </Box>
     </Box>
   )
 }
 
-/* Completed meeting row */
-function CompletedRow({ meeting }) {
-  const navigate = useNavigate()
-
+/* Date separator */
+function DayHeader({ children, compact = false }) {
   return (
-    <ButtonBase
-      onClick={() => navigate(`/meetings/${meeting.id}`)}
+    <Box
       sx={{
-        width: '100%',
-        px: { xs: 1.5, sm: 2 },
-        py: 1.25,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        gap: 1.5,
-        textAlign: 'left',
+        px: { xs: 1.25, sm: 1.75 },
+        py: compact ? 0.35 : 0.55,
+        bgcolor: '#F5F7FB',
         borderBottom: `1px solid ${D.line}`,
-        '&:last-child': {
-          borderBottom: 0,
-        },
-        '&:hover': {
-          bgcolor: '#F7F9FE',
-        },
       }}
     >
-      <Box
+      <Typography
         sx={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 1,
-          minWidth: 0,
+          fontSize: '.625rem',
+          fontWeight: 700,
+          letterSpacing: '.04em',
+          color: D.muted,
         }}
       >
-        <CheckCircleOutlineRoundedIcon
-          sx={{
-            fontSize: 19,
-            color: '#2875C7',
-            flexShrink: 0,
-          }}
-        />
-
-        <Box sx={{ minWidth: 0 }}>
-          <Typography
-            noWrap
-            sx={{
-              fontSize: '.8125rem',
-              fontWeight: 600,
-              color: D.navy,
-            }}
-          >
-            {meeting.title}
-          </Typography>
-
-          <Typography
-            sx={{
-              mt: 0.25,
-              fontSize: '.6875rem',
-              color: D.muted,
-            }}
-          >
-            {platformOf(meeting)} · {time24(meeting._start)}
-          </Typography>
-        </Box>
-      </Box>
-
-      <Button
-        size="small"
-        endIcon={
-          <ArrowOutwardRoundedIcon
-            sx={{ fontSize: '13px !important' }}
-          />
-        }
-        onClick={() => navigate(`/meetings/${meeting.id}`)}
-        sx={{
-          minWidth: 0,
-          px: 0.5,
-          fontSize: '.75rem',
-          fontWeight: 600,
-          textTransform: 'none',
-          color: D.navy,
-        }}
-      >
-        View Meeting Details
-      </Button>
-    </ButtonBase>
+        {children}
+      </Typography>
+    </Box>
   )
 }
 
+/* Up next timeline (title now lives in Dashboard header row) */
 export default function MeetingTimeline({
   meetings = [],
-  now,
+  now = new Date(),
   meetingSettings = {},
   onSettingsChange,
+  compact = false,
 }) {
-  const [showUpcoming, setShowUpcoming] = useState(false)
-  const [showCompleted, setShowCompleted] = useState(false)
-
+  const [activeTab, setActiveTab] = useState('upcoming')
+  const navigate=useNavigate()
   const past = meetings.filter(
     (meeting) => statusOf(meeting, now) === 'past',
   )
@@ -611,25 +498,43 @@ export default function MeetingTimeline({
     (meeting) => statusOf(meeting, now) === 'live',
   )
 
-  const upcoming = meetings.filter(
-    (meeting) => statusOf(meeting, now) === 'upcoming',
-  )
+  const upcoming = meetings
+    .filter((meeting) => statusOf(meeting, now) === 'upcoming')
+    .sort((a, b) => a._start - b._start)
 
-  // Completed meetings: newest first
-  const completedMeetings = past.slice().reverse()
+  const completedMeetings = past
+    .slice()
+    .sort((a, b) => b._start - a._start)
 
-  // Independent pagination for each dropdown
-  const completedPager = usePagination(
-    completedMeetings,
+  const displayedMeetings =
+    activeTab === 'upcoming'
+      ? upcoming
+      : completedMeetings
+
+  const pager = usePagination(
+    displayedMeetings,
     PAGE_SIZE,
-    'dashboard-completed',
+    `dashboard-${activeTab}`,
   )
 
-  const upcomingPager = usePagination(
-    upcoming,
-    PAGE_SIZE,
-    'dashboard-upcoming',
-  )
+  const groupedUpcoming = useMemo(() => {
+    const groups = new Map()
+
+    pager.pageItems.forEach((meeting) => {
+      const key = dateKey(meeting._start)
+
+      if (!groups.has(key)) {
+        groups.set(key, {
+          date: meeting._start,
+          meetings: [],
+        })
+      }
+
+      groups.get(key).meetings.push(meeting)
+    })
+
+    return Array.from(groups.values())
+  }, [pager.pageItems])
 
   return (
     <Box
@@ -641,35 +546,10 @@ export default function MeetingTimeline({
         width: '100%',
       }}
     >
-      {/* Main heading */}
-      <Box
-        sx={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: 1,
-          mb: 2,
-        }}
-      >
-        <Typography
-          component="h1"
-          sx={{
-            ...titleSx,
-            fontSize: {
-              xs: '1.5rem',
-              md: '1.65rem',
-            },
-            fontWeight: 400,
-          }}
-        >
-          Today’s Schedule
-        </Typography>
-      </Box>
-
       {meetings.length === 0 ? (
         <EmptyPanel
           title="No meetings scheduled today"
-          minHeight={150}
+          minHeight={compact ? 100 : 150}
         >
           Your meetings will appear here when they are available.
         </EmptyPanel>
@@ -678,190 +558,236 @@ export default function MeetingTimeline({
           sx={{
             display: 'flex',
             flexDirection: 'column',
-            gap: 1.75,
+            gap: compact ? 0.9 : 1.5,
             minWidth: 0,
           }}
         >
-          {/* Completed dropdown */}
+          {/* Live meeting */}
+          {live.map((meeting) => (
+            <LiveCard
+              key={meeting.id}
+              meeting={meeting}
+              now={now}
+              compact={compact}
+              settings={settingsFor(
+                meeting,
+                meetingSettings,
+              )}
+              onSettingsChange={onSettingsChange}
+            />
+          ))}
+
+          {/* Up next */}
           <Box
             sx={{
               border: `1px solid ${D.line}`,
-              borderRadius: '7px',
+              borderRadius: R,
               overflow: 'hidden',
               bgcolor: '#FFFFFF',
+              boxShadow: '0 1px 3px rgba(20,40,80,.04)',
             }}
           >
-            <SectionDropdown
-              title="Completed Meetings"
-              count={past.length}
-              open={showCompleted}
-              onClick={() =>
-                setShowCompleted((value) => !value)
-              }
-              expandedColor="#2875C7"
-              icon={
-                <CheckCircleOutlineRoundedIcon
-                  sx={{ color: '#2875C7', fontSize: 22 }}
-                />
-              }
-            />
-
-            {showCompleted && (
-              <Box
-                sx={{
-                  borderTop: `1px solid ${D.line}`,
-                }}
-              >
-                {completedMeetings.length > 0 ? (
-                  <>
-                    {completedPager.pageItems.map((meeting) => (
-                      <CompletedRow
-                        key={meeting.id}
-                        meeting={meeting}
-                      />
-                    ))}
-
-                    {completedMeetings.length > PAGE_SIZE && (
-                      <PaginationBar
-                        pager={completedPager}
-                        label="meetings"
-                      />
-                    )}
-                  </>
-                ) : (
-                  <Typography
-                    sx={{
-                      px: 2,
-                      py: 2,
-                      fontSize: '.8125rem',
-                      color: D.muted,
-                    }}
-                  >
-                    No completed meetings yet today.
-                  </Typography>
-                )}
-              </Box>
-            )}
-          </Box>
-
-          {/* Live meetings always get first priority */}
-          {live.length > 0 ? (
-            live.map((meeting) => (
-              <LiveCard
-                key={meeting.id}
-                meeting={meeting}
-                now={now}
-                settings={settingsFor(
-                  meeting,
-                  meetingSettings,
-                )}
-                onSettingsChange={onSettingsChange}
-              />
-            ))
-          ) : (
+            {/* Header + tabs */}
             <Box
               sx={{
-                p: 2,
-                border: `1px solid ${D.line}`,
-                borderRadius: '7px',
-                bgcolor: '#FFFFFF',
+                px: { xs: 1.25, sm: 1.75 },
+                py: compact ? 0.55 : 0.9,
                 display: 'flex',
                 alignItems: 'center',
-                gap: 1.25,
+                justifyContent: 'space-between',
+                gap: 1.5,
+                flexWrap: 'wrap',
+                borderBottom: `1px solid ${D.line}`,
               }}
             >
-              <ScheduleRoundedIcon
-                sx={{ color: D.muted, fontSize: 21 }}
-              />
-
-              <Box>
+              <Box sx={{ minWidth: 0 }}>
                 <Typography
+                  component="h2"
                   sx={{
-                    fontSize: '.875rem',
-                    fontWeight: 600,
+                    fontSize: '.9375rem',
+                    fontWeight: 700,
                     color: D.navy,
+                    lineHeight: 1.35,
                   }}
                 >
-                  No live meeting right now
+                  Up next
                 </Typography>
 
                 <Typography
                   sx={{
-                    mt: 0.25,
-                    fontSize: '.75rem',
+                    mt: 0.2,
+                    fontSize: '.6875rem',
                     color: D.muted,
                   }}
                 >
-                  Your next meeting will appear in Upcoming Meetings.
+                  Your next {Math.min(5, upcoming.length)} meetings. Change MeetAI or recording before they start.
                 </Typography>
               </Box>
-            </Box>
-          )}
 
-          {/* Upcoming dropdown */}
-          <Box
-            sx={{
-              border: `1px solid ${D.line}`,
-              borderRadius: '7px',
-              overflow: 'hidden',
-              bgcolor: '#FFFFFF',
-            }}
-          >
-            <SectionDropdown
-              title="Upcoming Meetings"
-              count={upcoming.length}
-              open={showUpcoming}
-              onClick={() =>
-                setShowUpcoming((value) => !value)
-              }
-              icon={
-                <ScheduleRoundedIcon
-                  sx={{ color: '#2875C7', fontSize: 22 }}
-                />
-              }
-            />
-
-            {showUpcoming && (
               <Box
+                role="tablist"
+                aria-label="Meeting status"
                 sx={{
-                  borderTop: `1px solid ${D.line}`,
+                  display: 'flex',
+                  alignItems: 'center',
+                  p: 0.25,
+                  bgcolor: '#F0F3F9',
+                  borderRadius: R,
+                  flexShrink: 0,
                 }}
               >
-                {upcoming.length > 0 ? (
-                  <>
-                    {upcomingPager.pageItems.map((meeting) => (
-                      <UpcomingRow
+                {[
+                  {
+                    value: 'upcoming',
+                    label: 'Upcoming',
+                    count: upcoming.length,
+                  },
+                  {
+                    value: 'completed',
+                    label: 'Completed',
+                    count: completedMeetings.length,
+                  },
+                ].map((tab) => {
+                  const selected = activeTab === tab.value
+
+                  return (
+                    <ButtonBase
+                      key={tab.value}
+                      role="tab"
+                      aria-selected={selected}
+                      onClick={() => setActiveTab(tab.value)}
+                      sx={{
+                        px: 1.25,
+                        py: compact ? 0.4 : 0.65,
+                        borderRadius: R,
+                        fontSize: '.6875rem',
+                        fontWeight: selected ? 700 : 500,
+                        color: selected ? D.navy : D.muted,
+                        bgcolor: selected ? '#FFFFFF' : 'transparent',
+                        border: selected
+                          ? `1px solid ${D.line}`
+                          : '1px solid transparent',
+                        boxShadow: selected
+                          ? '0 1px 2px rgba(20,40,80,.06)'
+                          : 'none',
+                        whiteSpace: 'nowrap',
+                        '&:hover': {
+                          bgcolor: selected ? '#FFFFFF' : '#E8EDF6',
+                        },
+                      }}
+                    >
+                      {tab.label} · {tab.count}
+                    </ButtonBase>
+                  )
+                })}
+              </Box>
+            </Box>
+
+            {/* Meeting list */}
+            {displayedMeetings.length > 0 ? (
+              <>
+                {activeTab === 'upcoming'
+                  ? groupedUpcoming.map((group) => (
+                      <Box key={dateKey(group.date)}>
+                        <DayHeader compact={compact}>
+                          {dayHeading(group.date, now)}
+                        </DayHeader>
+
+                        {group.meetings.map((meeting) => (
+                          <MeetingRow
+                            key={meeting.id}
+                            meeting={meeting}
+                            compact={compact}
+                            settings={settingsFor(
+                              meeting,
+                              meetingSettings,
+                            )}
+                            onSettingsChange={onSettingsChange}
+                          />
+                        ))}
+                      </Box>
+                    ))
+                  : pager.pageItems.map((meeting) => (
+                      <MeetingRow
                         key={meeting.id}
                         meeting={meeting}
-                        settings={settingsFor(
-                          meeting,
-                          meetingSettings,
-                        )}
-                        onSettingsChange={onSettingsChange}
+                        compact={compact}
+                        completed
                       />
                     ))}
 
-                    {upcoming.length > PAGE_SIZE && (
-                      <PaginationBar
-                        pager={upcomingPager}
-                        label="meetings"
-                      />
-                    )}
-                  </>
-                ) : (
-                  <Typography
-                    sx={{
-                      px: 2,
-                      py: 2,
-                      fontSize: '.8125rem',
-                      color: D.muted,
-                    }}
-                  >
-                    No upcoming meetings for today.
-                  </Typography>
+                {displayedMeetings.length > PAGE_SIZE && (
+                  <PaginationBar
+                    pager={pager}
+                    label="meetings"
+                  />
                 )}
-              </Box>
+              </>
+            ) : (
+              <Typography
+                sx={{
+                  px: 1.75,
+                  py: compact ? 1.2 : 2,
+                  fontSize: '.8125rem',
+                  color: D.muted,
+                }}
+              >
+                {activeTab === 'upcoming'
+                  ? 'No upcoming meetings.'
+                  : 'No completed meetings yet.'}
+              </Typography>
             )}
+
+            {/* Footer */}
+            <Box
+              sx={{
+                px: { xs: 1.25, sm: 1.75 },
+                py: compact ? 0.45 : 0.75,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 1,
+                flexWrap: 'wrap',
+                bgcolor: '#FFFFFF',
+                borderTop: `1px solid ${D.line}`,
+              }}
+            >
+              <Typography
+                sx={{
+                  fontSize: '.625rem',
+                  color: D.muted,
+                }}
+              >
+                Showing {pager.pageItems.length} of{' '}
+                {displayedMeetings.length}{' '}
+                {activeTab === 'upcoming'
+                  ? 'upcoming'
+                  : 'completed'}{' '}
+                meetings
+              </Typography>
+
+              <Button
+                size="small"
+                onClick={() => navigate('/calendar')}
+                endIcon={
+                  <ArrowOutwardRoundedIcon
+                    sx={{ fontSize: '12px !important' }}
+                  />
+                }
+                sx={{
+                  minWidth: 0,
+                  px: 0.25,
+                  borderRadius: R,
+                  fontSize: '.6875rem',
+                  fontWeight: 600,
+                  textTransform: 'none',
+                  color: D.navy,
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                Open full calendar (week - month)
+              </Button>
+            </Box>
           </Box>
         </Box>
       )}

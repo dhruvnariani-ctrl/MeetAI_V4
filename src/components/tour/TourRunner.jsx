@@ -439,6 +439,7 @@ export default function TourRunner() {
   const navigatedFor = useRef(-1)
   const drawerRequestedFor = useRef(-1)
   const goRef = useRef(null)
+  const cardHeightRef = useRef(CARD_HEIGHT) // FIX
 
   const index = tour?.index ?? 0
   const step =
@@ -573,6 +574,12 @@ export default function TourRunner() {
     goRef.current = goTo
   }, [goTo])
 
+  // FIX: the step effect reads the card height through a ref, so a height
+  // change no longer restarts the step (which unmounted and remounted the card).
+  useEffect(() => {
+    cardHeightRef.current = cardHeight
+  }, [cardHeight])
+
   /*
    * Locate the target for the current step and wait for navigation,
    * drawer animation, or page rendering to finish.
@@ -675,7 +682,7 @@ export default function TourRunner() {
         behavior: 'auto',
       })
 
-      makeRoomForCard(target, cardHeight)
+      makeRoomForCard(target, cardHeightRef.current) // FIX
 
       window.requestAnimationFrame(() => {
         if (cancelled) return
@@ -696,7 +703,7 @@ export default function TourRunner() {
       window.clearInterval(timer)
       detach()
     }
-  }, [step, index, pathname, navigate, cardHeight])
+  }, [step, index, pathname, navigate]) // FIX: cardHeight removed
 
   /*
    * Escape closes the tour.

@@ -974,6 +974,66 @@ function buildMeetings(now = new Date()) {
       attendanceDetails: {},
     },
     {
+      id: 'm58',
+
+      title: 'Tomorrow Sales Planning',
+
+      start: at(24 * 60 + 120),
+      end: at(24 * 60 + 180),
+
+      platform: 'Google Meet',
+
+      link:
+        'https://meet.google.com/tomorrow-sales-planning',
+
+      participants: [
+        {
+          ...me,
+          attended: null,
+        },
+        {
+          ...PEOPLE[2],
+          attended: null,
+        },
+        {
+          ...PEOPLE[4],
+          attended: null,
+        },
+      ],
+
+      meetAI: {
+        invited: false,
+        attended: false,
+        recordVideo: false,
+      },
+
+      recording: {
+        available: false,
+        duration: null,
+      },
+
+      transcript: {
+        available: false,
+        text: null,
+      },
+
+      meetingSummary: null,
+
+      actionItems: [
+        {
+          id: 'm9-a1',
+          title:
+            'Prepare tomorrow sales planning notes',
+          owner: 'Dhruv Nariani',
+          due: at(24 * 60),
+          priority: 'Medium',
+          status: 'Pending',
+        },
+      ],
+
+      attendanceDetails: {},
+    },
+    {
   id: 'm7',
 
   title: 'Aarav and Meera project review',

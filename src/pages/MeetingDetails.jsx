@@ -291,7 +291,7 @@ export default function MeetingDetails() {
         </Box>
 
         <Box sx={{ minWidth: 0 }}>
-          <Box sx={{ minWidth: 0 }}>
+          <Box data-tour="meeting-tabs" sx={{ minWidth: 0 }}>
             <MeetingTabs
               value={activeTab}
               onChange={handleTabChange}

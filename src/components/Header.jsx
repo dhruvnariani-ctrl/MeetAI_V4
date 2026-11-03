@@ -31,7 +31,6 @@ import AvaadaLogo from '../assets/Avaada Logo.png'
 
 const NAV_ITEMS = [
   { label: 'Dashboard', to: '/', end: true },
-  { label: 'Calendar', to: '/calendar' },
   { label: 'Recorded Meetings', to: '/recorded' },
   { label: 'My Tasks', to: '/tasks' },
 ]
@@ -387,7 +386,7 @@ export default function Header({
             <Box
               sx={{
                 px: { xs: 1.5, sm: 2 },
-                pb: 1.5,
+                pb: 1,
                 pt: 0.25,
                 width: '100%',
                 boxSizing: 'border-box',

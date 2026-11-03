@@ -5,6 +5,7 @@ import Switch from '@mui/material/Switch'
 import Typography from '@mui/material/Typography'
 
 import MeetAISettingsDialog, { switchSx } from './MeetAISettingDialog'
+import { D } from './dashboard/dashTheme'
 
 const toggleButtonSx = {
   display: 'inline-flex',
@@ -20,10 +21,11 @@ const toggleButtonSx = {
   },
 }
 
-// On the navy "happening now" card: white labels, green switches.
-const darkSwitchSx = {
+// Same switch style as the dialog, with the "on" track in green instead of navy.
+const greenSwitchSx = {
   ...switchSx,
-  '& .Mui-checked + .MuiSwitch-track': { opacity: 1, bgcolor: '#5BA82B' },
+  '& .Mui-checked + .MuiSwitch-track': { opacity: 1, bgcolor: D.green },
+  pointerEvents: 'none',
 }
 
 const stop = (event) => event.stopPropagation()
@@ -47,7 +49,6 @@ export default function MeetingToggles({
     transition: 'color 120ms ease',
   }
   const hoverColor = dark ? '#7BD34A' : 'primary.main'
-  const switchStyle = { ...(dark ? darkSwitchSx : switchSx), pointerEvents: 'none' }
 
   const openDialog = (event) => {
     event?.stopPropagation()
@@ -97,7 +98,7 @@ export default function MeetingToggles({
           }}
         >
           <Typography className="meeting-toggle-label" sx={labelSx}>
-            Invite MeetAI
+            MeetAI
           </Typography>
 
           <Switch
@@ -107,7 +108,7 @@ export default function MeetingToggles({
             readOnly
             tabIndex={-1}
             slotProps={{ input: { 'aria-hidden': true } }}
-            sx={switchStyle}
+            sx={greenSwitchSx}
           />
         </Box>
 
@@ -126,7 +127,7 @@ export default function MeetingToggles({
           }}
         >
           <Typography className="meeting-toggle-label" sx={labelSx}>
-            Video recording
+            Record
           </Typography>
 
           <Switch
@@ -136,7 +137,7 @@ export default function MeetingToggles({
             readOnly
             tabIndex={-1}
             slotProps={{ input: { 'aria-hidden': true } }}
-            sx={switchStyle}
+            sx={greenSwitchSx}
           />
         </Box>
       </Box>

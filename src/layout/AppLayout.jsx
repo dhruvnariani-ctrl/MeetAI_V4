@@ -124,7 +124,7 @@ export default function AppLayout() {
           top: -60,
           zIndex: 2000,
           px:{ xs: 0, md: 0 ,lg:12},
-          py: 1.25,
+          py: 1,
           borderRadius: '12px',
           bgcolor: 'text.primary',
           color: '#fff',
@@ -163,7 +163,7 @@ export default function AppLayout() {
           minHeight: 0,
           overflow: 'auto',
           outline: 'none',
-          px:{ xs: 0, md: 0 ,lg:10},
+          px:{ xs: 0, md: 0 ,lg:7},
           bgcolor: D.page,
           '&:focus-visible': { outline: '2px solid', outlineColor: 'primary.main', outlineOffset: -2 },
         }}
